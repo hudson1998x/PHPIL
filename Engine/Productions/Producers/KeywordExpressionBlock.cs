@@ -7,6 +7,11 @@ public class KeywordExpressionBlock : Production
 {
     public virtual SyntaxNode? Node { get; private set; }
 
+    public virtual SyntaxNode CreateNode(int start, int end, ExpressionNode? expr, BlockNode? body)
+    {
+        return new SyntaxNode();
+    }
+
     public override Producer Init()
     {
         var expr  = new Expression();
@@ -27,13 +32,7 @@ public class KeywordExpressionBlock : Production
             ),
             (start, end) =>
             {
-                Node = new IfNode
-                {
-                    RangeStart = start,
-                    RangeEnd   = end,
-                    Expression = expr.Node,
-                    Body       = block.Node
-                };
+                Node = CreateNode(start, end, expr?.Node, block?.Node);
             }
         );
     }

@@ -10,6 +10,17 @@ public class IfExpression : KeywordExpressionBlock
     public List<ElseIfNode> ElseIfs { get; } = new();
     public BlockNode? Else { get; private set; }
 
+    public override SyntaxNode CreateNode(int start, int end, ExpressionNode? expr, BlockNode? body)
+    {
+        return new IfNode
+        {
+            RangeStart = start,
+            RangeEnd = end,
+            Expression = expr,
+            Body = body
+        };
+    }
+
     public override Producer Init()
     {
         var baseProducer = base.Init();
