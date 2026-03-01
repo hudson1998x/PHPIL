@@ -1,0 +1,15 @@
+{
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "esbuild": "^0.27.3"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "scripts": {
+    "webconsole:watch": "node WebConsole/scripts/esbuild.js --watch",
+    "webconsole:launch": "dotnet run --ui"
+  }
+}
