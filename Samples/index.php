@@ -1,7 +1,14 @@
 ﻿<?php
 
-require_once('Samples/second.php');
+$end = 5;
+$start = 0;
 
-var_dump(strlen("Hello World"));
-
-test_operators(5,3);
+while($start < $end)
+{
+    print("Start ");
+    print($start);
+    print(", End ");
+    print($end);
+    print("\n");
+    $start++;
+}

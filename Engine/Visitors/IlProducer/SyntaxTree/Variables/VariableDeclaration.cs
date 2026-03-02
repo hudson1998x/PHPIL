@@ -1,7 +1,7 @@
 ﻿using System.Reflection.Emit;
+using PHPIL.Engine.Runtime.Types;
 using PHPIL.Engine.Visitors;
 using PHPIL.Engine.Visitors.IlProducer;
-using PHPIL.Engine.Runtime;
 
 namespace PHPIL.Engine.SyntaxTree;
 
@@ -66,21 +66,20 @@ public partial class VariableDeclaration
         }
 
         // ── Step 2: resolve or allocate the local slot ────────────────────────
-        int slot;
-        if (!ilProducer.GetContext().TryGetVariableSlot(varName, out slot))
+        if (!ilProducer.GetContext().TryGetVariableSlot(varName, out int slot))
         {
             // First assignment to this name in the current scope — declare a new
             // IL local. All locals are typed as `object` so the runtime can hold
             // any PhpValue without a type mismatch when the same variable is
             // reassigned to a different PHP type later.
-            var local = generator.DeclareLocal(typeof(object));
+            var local = generator.DeclareLocal(typeof(PhpValue));
             slot = local.LocalIndex;
 
             // Register the name→slot mapping in the current frame so future reads
             // (VariableNode) and writes (VariableDeclaration) can look it up without
             // re-allocating. Registration must happen after DeclareLocal so the slot
             // index is known.
-            ilProducer.GetContext().CurrentFrame.RegisterVariable(varName);
+            ilProducer.GetContext().CurrentFrame.RegisterVariable(varName, slot);
         }
         // If TryGetVariableSlot succeeded, `slot` already holds the correct index
         // and we just overwrite the existing local — standard PHP reassignment.
@@ -89,9 +88,8 @@ public partial class VariableDeclaration
         generator.Emit(OpCodes.Stloc, slot);
 
         // ── Step 4: update the emitted type tracker ───────────────────────────
-        // The stored type is `object` rather than PhpValue because that's what the
-        // IL local is declared as. Any subsequent read via VariableNode will emit
-        // Ldloc which pushes an `object`, and callers should know to expect that.
-        ilProducer.LastEmittedType = typeof(object);
+        // We set LastEmittedType to null because the stack was consumed by Stloc.
+        // This signals to parent nodes (like BlockNode) that no extra Pop is needed.
+        ilProducer.LastEmittedType = null;
     }
 }

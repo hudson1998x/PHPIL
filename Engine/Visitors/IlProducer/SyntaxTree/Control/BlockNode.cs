@@ -44,6 +44,8 @@ public partial class BlockNode
         {
             visitor.Visit(syntaxNode, in source);
 
+            // This clears the stack for expressions used as statements.
+            // If LastEmittedType is null (like in VariableDeclaration), nothing happens.
             // FunctionCallNode always leaves a PhpValue on the evaluation stack so
             // that nested calls (e.g. var_dump(strlen(...))) work correctly — the
             // inner call's return value is consumed as an argument by the outer call.
@@ -51,8 +53,7 @@ public partial class BlockNode
             // here to keep the stack balanced. The ReturnType check gates this: a
             // function known to return void at compile time needs no pop since nothing
             // was pushed; everything else (unknown functions included) always pushes.
-            if (visitor is IlProducer il && syntaxNode is FunctionCallNode &&
-                il.LastEmittedType != null)
+            if (visitor is IlProducer il && il.LastEmittedType != null)
             {
                 il.GetILGenerator().Emit(OpCodes.Pop);
                 il.LastEmittedType = null;

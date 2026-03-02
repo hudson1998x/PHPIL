@@ -94,15 +94,12 @@ public static class Parser
             // `while`, `for`, and `foreach` all share the same shape:
             // keyword → parenthesised expression → block body.
             case TokenKind.While:
-            case TokenKind.For:
-            case TokenKind.Foreach:
             {
-                var production = new KeywordExpressionBlock();
+                var production = new WhileExpression();
                 var match      = production.Init()(tokens, source, pointer);
                 if (match.Success) { pointer = match.End; return production.Node; }
                 break;
             }
-
             // A bare `{` signals an anonymous block scope.
             case TokenKind.LeftBrace:
             {

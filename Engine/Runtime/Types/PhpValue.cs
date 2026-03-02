@@ -37,6 +37,26 @@ namespace PHPIL.Engine.Runtime.Types
             Value = value;
         }
 
+        public PhpValue(int value)
+        {
+            Value =  value;
+        }
+        
+        public PhpValue(double value)
+        {
+            Value =  value;
+        }
+        
+        public PhpValue(bool value)
+        {
+            Value =  value;
+        }
+        
+        public PhpValue(string value)
+        {
+            Value =  value;
+        }
+
         #region Conversions
 
         public int ToInt()

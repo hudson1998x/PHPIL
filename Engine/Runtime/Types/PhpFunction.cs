@@ -1,6 +1,6 @@
 ﻿namespace PHPIL.Engine.Runtime.Types;
 
-public delegate object PhpCallable(params PhpValue[] args);
+public delegate PhpValue PhpCallable(params PhpValue[] args);
 
 public class PhpFunction
 {

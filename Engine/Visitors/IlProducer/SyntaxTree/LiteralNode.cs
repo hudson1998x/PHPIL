@@ -36,30 +36,26 @@ public partial class LiteralNode
         switch (Token.Kind)
         {
             case TokenKind.IntLiteral:
-                // PHP integers are emitted as boxed CLR ints wrapped in PhpValue.
-                // The box step is required because PhpValue's constructor takes
-                // `object` — value types must be heap-allocated before they can
-                // be passed as a reference.
+                // PHP integers are emitted as CLR ints wrapped in a PhpValue.
+                // We use the specific int constructor directly to avoid unnecessary
+                // boxing to object.
                 il.Emit(OpCodes.Ldc_I4, int.Parse(value));
-                il.Emit(OpCodes.Box, typeof(int));
                 il.Emit(OpCodes.Newobj, typeof(PhpValue)
-                    .GetConstructor(new[] { typeof(object) })!);
+                    .GetConstructor(new[] { typeof(int) })!);
                 break;
 
             case TokenKind.FloatLiteral:
-                // Same box-then-wrap pattern as integers, using Ldc_R8 for a
-                // 64-bit double to match PHP's float precision.
+                // Same pattern as integers, using Ldc_R8 for a 64-bit double 
+                // to match PHP's float precision and wrapping via the double constructor.
                 il.Emit(OpCodes.Ldc_R8, double.Parse(value));
-                il.Emit(OpCodes.Box, typeof(double));
                 il.Emit(OpCodes.Newobj, typeof(PhpValue)
-                    .GetConstructor(new[] { typeof(object) })!);
+                    .GetConstructor(new[] { typeof(double) })!);
                 break;
 
             case TokenKind.StringLiteral:
                 // Strip the surrounding quote characters that the lexer left in
                 // the token text, then unescape PHP escape sequences into their
-                // real character equivalents. Strings are reference types so no
-                // boxing step is needed before passing to the PhpValue constructor.
+                // real character equivalents.
                 var str = value.Length >= 2 ? value[1..^1] : value;
                 str = str
                     .Replace("\\n",  "\n")
@@ -74,25 +70,23 @@ public partial class LiteralNode
                     .Replace("\\'",  "'");
                 il.Emit(OpCodes.Ldstr, str);
                 il.Emit(OpCodes.Newobj, typeof(PhpValue)
-                    .GetConstructor(new[] { typeof(object) })!);
+                    .GetConstructor(new[] { typeof(string) })!);
                 break;
 
             case TokenKind.TrueLiteral:
-                // `true` is represented as a boxed CLR bool with value 1.
+                // `true` is represented as a PhpValue containing a boolean.
                 // Ldc_I4_1 is a single-byte shorthand opcode for pushing the
-                // integer 1, which is then box-cast to bool before wrapping.
+                // integer 1 (representing true).
                 il.Emit(OpCodes.Ldc_I4_1);
-                il.Emit(OpCodes.Box, typeof(bool));
                 il.Emit(OpCodes.Newobj, typeof(PhpValue)
-                    .GetConstructor(new[] { typeof(object) })!);
+                    .GetConstructor(new[] { typeof(bool) })!);
                 break;
 
             case TokenKind.FalseLiteral:
                 // Mirror of TrueLiteral using Ldc_I4_0 (push 0) for false.
                 il.Emit(OpCodes.Ldc_I4_0);
-                il.Emit(OpCodes.Box, typeof(bool));
                 il.Emit(OpCodes.Newobj, typeof(PhpValue)
-                    .GetConstructor(new[] { typeof(object) })!);
+                    .GetConstructor(new[] { typeof(bool) })!);
                 break;
 
             case TokenKind.NullLiteral:
