@@ -2,6 +2,4 @@
 
 require_once('Samples/second.php');
 
-(function(){
-    print("Hello World");
-})();
+var_dump(strlen("Hello World"));

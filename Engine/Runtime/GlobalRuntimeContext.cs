@@ -65,5 +65,6 @@ public static partial class GlobalRuntimeContext
     {
         Stdlib_Dev();
         Stdlib_ReqInc();
+        Stdlib_Strings();
     }
 }

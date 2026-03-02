@@ -1,4 +1,5 @@
-﻿using PHPIL.Engine.Visitors;
+﻿using System.Reflection.Emit;
+using PHPIL.Engine.Visitors;
 using PHPIL.Engine.Visitors.IlProducer;
 
 namespace PHPIL.Engine.SyntaxTree;
@@ -35,23 +36,33 @@ public partial class BlockNode
         // e.g. a variable declared inside an `if` body shouldn't be resolvable
         // by code after the closing brace.
         if (visitor is IlProducer ilProducer)
-        {
             ilProducer.EnterScope();
-        }
 
         // Visit each statement in source order. The visitor handles dispatch —
         // each node's Accept routes to the correct typed overload via double dispatch.
         foreach (var syntaxNode in Statements)
         {
             visitor.Visit(syntaxNode, in source);
+
+            // FunctionCallNode always leaves a PhpValue on the evaluation stack so
+            // that nested calls (e.g. var_dump(strlen(...))) work correctly — the
+            // inner call's return value is consumed as an argument by the outer call.
+            // At statement level however the return value is never used, so we pop it
+            // here to keep the stack balanced. The ReturnType check gates this: a
+            // function known to return void at compile time needs no pop since nothing
+            // was pushed; everything else (unknown functions included) always pushes.
+            if (visitor is IlProducer il && syntaxNode is FunctionCallNode &&
+                il.LastEmittedType != null)
+            {
+                il.GetILGenerator().Emit(OpCodes.Pop);
+                il.LastEmittedType = null;
+            }
         }
 
         // Pop the scope frame now that all statements have been emitted.
         // Must be paired with every EnterScope — an unbalanced push/pop would
         // corrupt variable resolution for any code that follows this block.
         if (visitor is IlProducer scope)
-        {
             scope.ExitScope();
-        }
     }
 }
