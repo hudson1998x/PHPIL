@@ -95,6 +95,7 @@ public partial class BinaryOpNode
             // Ampersand doubles as both the reference operator and bitwise AND in PHP.
             // In expression context (which is all this node handles) it means bitwise AND.
             TokenKind.Ampersand => typeof(PhpValue).GetMethod("op_BitwiseAnd")!,
+            TokenKind.Concat => typeof(PhpValue).GetMethod("Concat"),
 
             // TokenKind.RightShiftUnsigned => typeof(PhpValue).GetMethod("ShiftRightUnsigned")!,
             // ^ Placeholder for unsigned right shift if PHP ever adds it (it hasn't as of PHP 8.x).

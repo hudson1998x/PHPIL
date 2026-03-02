@@ -2,21 +2,24 @@
 
 namespace PHPIL.Engine.Runtime.Types
 {
-    public enum PhpType
-    {
-        Void,
-        Null,
-        Int,
-        Double,
-        Bool,
-        String,
-        Object
-    }
-
+    /// <summary>
+    /// Represents a PHP runtime value in the PHPIL engine.
+    /// Encapsulates any PHP type (int, double, bool, string, object, null, or void)
+    /// and provides conversions, arithmetic, comparison, logical, bitwise, and concatenation operations.
+    /// </summary>
     public class PhpValue : IEquatable<PhpValue>
     {
+        #region Fields & Static Values
+
+        /// <summary>
+        /// The underlying .NET object representing the value.
+        /// May be <c>null</c> or any primitive/object type.
+        /// </summary>
         public object? Value { get; }
 
+        /// <summary>
+        /// The PHP type of this value.
+        /// </summary>
         public PhpType Type => ReferenceEquals(this, Void) ? PhpType.Void : Value switch
         {
             null => PhpType.Null,
@@ -27,38 +30,49 @@ namespace PHPIL.Engine.Runtime.Types
             _ => PhpType.Object
         };
 
+        /// <summary>
+        /// Returns true if this instance represents <see cref="Void"/>.
+        /// </summary>
         public bool IsVoid => ReferenceEquals(this, Void);
 
+        /// <summary>
+        /// Represents the PHP <c>null</c> value.
+        /// </summary>
         public static readonly PhpValue Null = new PhpValue(null);
+
+        /// <summary>
+        /// Represents a PHP <c>void</c> value.
+        /// </summary>
         public static readonly PhpValue Void = new PhpValue(new object());
 
-        public PhpValue(object? value)
-        {
-            Value = value;
-        }
+        #endregion
 
-        public PhpValue(int value)
-        {
-            Value =  value;
-        }
-        
-        public PhpValue(double value)
-        {
-            Value =  value;
-        }
-        
-        public PhpValue(bool value)
-        {
-            Value =  value;
-        }
-        
-        public PhpValue(string value)
-        {
-            Value =  value;
-        }
+        #region Constructors
+
+        /// <summary>
+        /// Creates a new <see cref="PhpValue"/> wrapping any object.
+        /// </summary>
+        public PhpValue(object? value) => Value = value;
+
+        /// <summary>Creates a PhpValue from an int.</summary>
+        public PhpValue(int value) => Value = value;
+
+        /// <summary>Creates a PhpValue from a double.</summary>
+        public PhpValue(double value) => Value = value;
+
+        /// <summary>Creates a PhpValue from a bool.</summary>
+        public PhpValue(bool value) => Value = value;
+
+        /// <summary>Creates a PhpValue from a string.</summary>
+        public PhpValue(string value) => Value = value;
+
+        #endregion
 
         #region Conversions
 
+        /// <summary>Converts the PhpValue to an int according to PHP type rules.</summary>
+        /// <exception cref="InvalidOperationException">Thrown if the value is void.</exception>
+        /// <exception cref="InvalidCastException">Thrown if conversion is not possible.</exception>
         public int ToInt()
         {
             if (ReferenceEquals(this, Void)) throw new InvalidOperationException("Cannot convert void to int.");
@@ -73,6 +87,9 @@ namespace PHPIL.Engine.Runtime.Types
             };
         }
 
+        /// <summary>Converts the PhpValue to a double according to PHP type rules.</summary>
+        /// <exception cref="InvalidOperationException">Thrown if the value is void.</exception>
+        /// <exception cref="InvalidCastException">Thrown if conversion is not possible.</exception>
         public double ToDouble()
         {
             if (ReferenceEquals(this, Void)) throw new InvalidOperationException("Cannot convert void to double.");
@@ -87,6 +104,8 @@ namespace PHPIL.Engine.Runtime.Types
             };
         }
 
+        /// <summary>Converts the PhpValue to a bool according to PHP type rules.</summary>
+        /// <exception cref="InvalidOperationException">Thrown if the value is void.</exception>
         public bool ToBool()
         {
             if (ReferenceEquals(this, Void)) throw new InvalidOperationException("Cannot convert void to bool.");
@@ -101,6 +120,8 @@ namespace PHPIL.Engine.Runtime.Types
             };
         }
 
+        /// <summary>Converts the PhpValue to a string according to PHP type rules.</summary>
+        /// <exception cref="InvalidOperationException">Thrown if the value is void.</exception>
         public string ToStringValue()
         {
             if (ReferenceEquals(this, Void)) throw new InvalidOperationException("Cannot convert void to string.");
@@ -201,6 +222,7 @@ namespace PHPIL.Engine.Runtime.Types
             return new PhpValue(a.ToDouble() >= b.ToDouble());
         }
 
+        /// <summary>Implements the PHP spaceship operator (&lt;=&gt;).</summary>
         public static PhpValue Spaceship(PhpValue a, PhpValue b)
         {
             if (ReferenceEquals(a, Void) || ReferenceEquals(b, Void))
@@ -260,7 +282,26 @@ namespace PHPIL.Engine.Runtime.Types
 
         public static PhpValue ShiftLeft(PhpValue a, PhpValue b) => new PhpValue(a.ToInt() << b.ToInt());
         public static PhpValue ShiftRight(PhpValue a, PhpValue b) => new PhpValue(a.ToInt() >> b.ToInt());
-        public static PhpValue ShiftRightUnsigned(PhpValue a, PhpValue b) => new PhpValue(a.ToInt() >>> b.ToInt());
+        public static PhpValue ShiftRightUnsigned(PhpValue a, PhpValue b) => new PhpValue((int)((uint)a.ToInt() >> b.ToInt()));
+
+        #endregion
+
+        #region String Concatenation
+
+        /// <summary>
+        /// Concatenates two <see cref="PhpValue"/> instances as strings, similar to PHP's <c>.</c> operator.
+        /// </summary>
+        /// <param name="a">Left-hand operand.</param>
+        /// <param name="b">Right-hand operand.</param>
+        /// <returns>A new <see cref="PhpValue"/> containing the string result of <c>a</c> + <c>b</c>.</returns>
+        /// <exception cref="InvalidOperationException">Thrown if either operand is <see cref="Void"/>.</exception>
+        public static PhpValue Concat(PhpValue a, PhpValue b)
+        {
+            if (ReferenceEquals(a, Void) || ReferenceEquals(b, Void))
+                throw new InvalidOperationException("Cannot concatenate void values.");
+
+            return new PhpValue(a.ToStringValue() + b.ToStringValue());
+        }
 
         #endregion
 
@@ -270,5 +311,19 @@ namespace PHPIL.Engine.Runtime.Types
         public string DebugInfo() => ReferenceEquals(this, Void) ? "Void" : $"{Type}({Value ?? "null"})";
 
         #endregion
+    }
+
+    /// <summary>
+    /// Enumeration of PHP value types.
+    /// </summary>
+    public enum PhpType
+    {
+        Void,
+        Null,
+        Int,
+        Double,
+        Bool,
+        String,
+        Object
     }
 }
