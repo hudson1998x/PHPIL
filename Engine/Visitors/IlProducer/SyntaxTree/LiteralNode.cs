@@ -7,68 +7,106 @@ using PHPIL.Engine.Visitors.IlProducer;
 
 namespace PHPIL.Engine.SyntaxTree;
 
+/// <summary>
+/// Visitor implementation for <see cref="LiteralNode"/> — emits IL that pushes
+/// a <see cref="PhpValue"/> onto the evaluation stack for each supported literal
+/// kind: integer, float, string, boolean, and null.
+///
+/// <para>
+/// All literals are normalised to <see cref="PhpValue"/> regardless of their
+/// underlying CLR type. This keeps the rest of the emitter simple — every
+/// expression result on the stack is the same type, so binary operations,
+/// assignments, and function calls don't need to branch on what the previous
+/// node emitted. <see cref="IlProducer.LastEmittedType"/> is set to
+/// <see cref="PhpValue"/> unconditionally at the end to reflect this.
+/// </para>
+/// </summary>
 public partial class LiteralNode
 {
     public override void Accept(IVisitor visitor, in ReadOnlySpan<char> source)
     {
+        // This node only knows how to emit IL — if the visitor isn't an IlProducer
+        // (e.g. a pretty-printer or analyser), silently do nothing. Each node type
+        // is responsible for deciding which visitor types it supports.
         if (visitor is not IlProducer ilProducer) return;
 
-        var il = ilProducer.GetILGenerator();
-        var value = Token.TextValue(source);
+        var il    = ilProducer.GetILGenerator();
+        var value = Token.TextValue(source); // slice the raw text from the source span
 
         switch (Token.Kind)
         {
             case TokenKind.IntLiteral:
-                il.Emit(OpCodes.Ldc_I4, int.Parse(value));   // push int
-                il.Emit(OpCodes.Box, typeof(int));           // box to object
+                // PHP integers are emitted as boxed CLR ints wrapped in PhpValue.
+                // The box step is required because PhpValue's constructor takes
+                // `object` — value types must be heap-allocated before they can
+                // be passed as a reference.
+                il.Emit(OpCodes.Ldc_I4, int.Parse(value));
+                il.Emit(OpCodes.Box, typeof(int));
                 il.Emit(OpCodes.Newobj, typeof(PhpValue)
-                    .GetConstructor(new[] { typeof(object) })!); // wrap in PhpValue
+                    .GetConstructor(new[] { typeof(object) })!);
                 break;
 
             case TokenKind.FloatLiteral:
-                il.Emit(OpCodes.Ldc_R8, double.Parse(value)); // push double
-                il.Emit(OpCodes.Box, typeof(double));         // box to object
+                // Same box-then-wrap pattern as integers, using Ldc_R8 for a
+                // 64-bit double to match PHP's float precision.
+                il.Emit(OpCodes.Ldc_R8, double.Parse(value));
+                il.Emit(OpCodes.Box, typeof(double));
                 il.Emit(OpCodes.Newobj, typeof(PhpValue)
-                    .GetConstructor(new[] { typeof(object) })!); // wrap
+                    .GetConstructor(new[] { typeof(object) })!);
                 break;
 
             case TokenKind.StringLiteral:
+                // Strip the surrounding quote characters that the lexer left in
+                // the token text, then unescape PHP escape sequences into their
+                // real character equivalents. Strings are reference types so no
+                // boxing step is needed before passing to the PhpValue constructor.
                 var str = value.Length >= 2 ? value[1..^1] : value;
                 str = str
-                    .Replace("\\n", "\n")
-                    .Replace("\\t", "\t")
-                    .Replace("\\r", "\r")
-                    .Replace("\\v", "\v")
-                    .Replace("\\e", "\x1B")
-                    .Replace("\\f", "\f")
-                    .Replace("\\\\", "\\")
-                    .Replace("\\$", "$")
+                    .Replace("\\n",  "\n")
+                    .Replace("\\t",  "\t")
+                    .Replace("\\r",  "\r")
+                    .Replace("\\v",  "\v")
+                    .Replace("\\e",  "\x1B") // ESC character (PHP 5.4+)
+                    .Replace("\\f",  "\f")
+                    .Replace("\\\\", "\\")   // literal backslash — must come after other \X replacements
+                    .Replace("\\$",  "$")    // escaped dollar sign (not a variable)
                     .Replace("\\\"", "\"")
-                    .Replace("\\'", "'");
+                    .Replace("\\'",  "'");
                 il.Emit(OpCodes.Ldstr, str);
                 il.Emit(OpCodes.Newobj, typeof(PhpValue)
                     .GetConstructor(new[] { typeof(object) })!);
                 break;
 
             case TokenKind.TrueLiteral:
-                il.Emit(OpCodes.Ldc_I4_1);     // push 1
-                il.Emit(OpCodes.Box, typeof(bool)); // box to object
+                // `true` is represented as a boxed CLR bool with value 1.
+                // Ldc_I4_1 is a single-byte shorthand opcode for pushing the
+                // integer 1, which is then box-cast to bool before wrapping.
+                il.Emit(OpCodes.Ldc_I4_1);
+                il.Emit(OpCodes.Box, typeof(bool));
                 il.Emit(OpCodes.Newobj, typeof(PhpValue)
                     .GetConstructor(new[] { typeof(object) })!);
                 break;
 
             case TokenKind.FalseLiteral:
-                il.Emit(OpCodes.Ldc_I4_0);     // push 0
-                il.Emit(OpCodes.Box, typeof(bool)); // box to object
+                // Mirror of TrueLiteral using Ldc_I4_0 (push 0) for false.
+                il.Emit(OpCodes.Ldc_I4_0);
+                il.Emit(OpCodes.Box, typeof(bool));
                 il.Emit(OpCodes.Newobj, typeof(PhpValue)
                     .GetConstructor(new[] { typeof(object) })!);
                 break;
 
             case TokenKind.NullLiteral:
+                // null is a singleton — loaded directly from a static field on
+                // PhpValue rather than constructed. This avoids allocating a new
+                // PhpValue instance for every null literal and keeps null identity
+                // consistent across the runtime.
                 il.Emit(OpCodes.Ldsfld, typeof(PhpValue).GetField("Null")!);
                 break;
         }
 
+        // Signal to the parent node that a PhpValue is now on top of the stack.
+        // The parent (e.g. BinaryOpNode, VariableAssignment) uses this to decide
+        // what operations are valid without needing to re-inspect the token kind.
         ilProducer.LastEmittedType = typeof(PhpValue);
     }
 }
