@@ -1,5 +1,11 @@
 ﻿<?php
 
-require_once('Samples/second.php');
+$closure = function() {
+    print("Closure works");
+}
 
-test_operators(10, 3);
+$otherMethod = "print";
+
+$otherMethod("dynamic access works");
+
+$closure();

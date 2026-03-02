@@ -366,6 +366,19 @@ public class Expression : Production
             return ParsePostfix(tokens, source, kwNode, pointer + 1);
         }
 
+        // Anonymous function / closure in expression position:
+        // e.g. `$fn = function() { ... }` or `$fn = function() use ($x) { ... }`
+        // Routed through ParsePostfix so immediately-invoked closures like
+        // `(function() { })()` chain correctly.
+        if (kind == TokenKind.Function)
+        {
+            var anon = new AnonymousFunction();
+            var anonMatch = anon.Init()(tokens, source, pointer);
+            if (!anonMatch.Success) return (null, new Match(false, pointer, pointer));
+
+            return ParsePostfix(tokens, source, anon.Node!, anonMatch.End);
+        }
+
         // Nothing matched — not an expression we recognise.
         return (null, new Match(false, pointer, pointer));
     }

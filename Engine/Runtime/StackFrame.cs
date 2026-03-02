@@ -1,13 +1,12 @@
-﻿namespace PHPIL.Engine.Runtime;
+﻿using PHPIL.Engine.Runtime.Types;
+
+namespace PHPIL.Engine.Runtime;
 
 public class StackFrame
 {
     private readonly Dictionary<string, int> _variables = new();
     private int _nextSlot = 0;
 
-    /// <summary>
-    /// When true, variable lookup stops at this frame (function context)
-    /// </summary>
     public bool BreaksTraversal { get; set; } = false;
 
     public int RegisterVariable(string name)
@@ -21,9 +20,7 @@ public class StackFrame
     }
 
     public void RegisterVariable(string name, int slot)
-    {
-        _variables[name] = slot;
-    }
+        => _variables[name] = slot;
 
     public bool TryGetVariableSlot(string name, out int slot)
         => _variables.TryGetValue(name, out slot);

@@ -112,13 +112,18 @@ public static class Parser
                 break;
             }
             
-            // Named function declarations. These are statement-level constructs in PHP
-            // (as opposed to anonymous functions/closures, which appear in expressions).
             case TokenKind.Function:
             {
-                var production = new FunctionDeclaration();
-                var match      = production.Init()(tokens, source, pointer);
-                if (match.Success) { pointer = match.End; return production.Node; }
+                // Try named function declaration first — if that fails (e.g. no identifier
+                // follows the keyword), fall back to an anonymous function/closure expression.
+                var named = new FunctionDeclaration();
+                var namedMatch = named.Init()(tokens, source, pointer);
+                if (namedMatch.Success) { pointer = namedMatch.End; return named.Node; }
+
+                var anon = new AnonymousFunction();
+                var anonMatch = anon.Init()(tokens, source, pointer);
+                if (anonMatch.Success) { pointer = anonMatch.End; return anon.Node; }
+
                 break;
             }
             
@@ -192,6 +197,8 @@ public static class Parser
                 if (match.Success) { pointer = match.End; return production.Node; }
                 break;
             }
+            default:
+                throw new InvalidOperationException($"Unexpected '{tokens[pointer].Kind}'");
         }
 
         // No production claimed this token.
