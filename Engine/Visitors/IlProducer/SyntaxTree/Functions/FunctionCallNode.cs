@@ -93,6 +93,45 @@ namespace PHPIL.Engine.SyntaxTree
                 il.Emit(OpCodes.Pop);
                 ilProducer.LastEmittedType = null;
             }
+            else if (Callee is GroupNode { Inner: AnonymousFunctionNode } groupedAnon
+                     || Callee is AnonymousFunctionNode)
+            {
+                // ── Immediately-invoked anonymous function: `(function() { ... })()` ──
+                // Visit the callee — AnonymousFunctionNode.Accept leaves a PhpValue(PhpCallable)
+                // on the stack, which InvokeVariable can invoke directly.
+                ilProducer.Visit(Callee, in source);
+                // Stack: [ PhpValue ]
+
+                il.Emit(OpCodes.Ldc_I4, Args.Count);
+                il.Emit(OpCodes.Newarr, typeof(PhpValue));
+
+                for (int i = 0; i < Args.Count; i++)
+                {
+                    il.Emit(OpCodes.Dup);
+                    il.Emit(OpCodes.Ldc_I4, i);
+
+                    ilProducer.Visit(Args[i], in source);
+
+                    if (ilProducer.LastEmittedType != typeof(PhpValue))
+                    {
+                        if (ilProducer.LastEmittedType != null && ilProducer.LastEmittedType.IsValueType)
+                            il.Emit(OpCodes.Box, ilProducer.LastEmittedType);
+
+                        il.Emit(OpCodes.Newobj, typeof(PhpValue).GetConstructor(new Type[] { typeof(object) })!);
+                    }
+
+                    il.Emit(OpCodes.Stelem_Ref);
+                    ilProducer.LastEmittedType = typeof(PhpValue);
+                }
+                // Stack: [ PhpValue, PhpValue[] ]
+
+                il.Emit(OpCodes.Call, typeof(FunctionCallNode).GetMethod(
+                    nameof(InvokeVariable),
+                    BindingFlags.NonPublic | BindingFlags.Static)!);
+                // Stack: [ PhpValue ]
+
+                il.Emit(OpCodes.Pop);
+            }
             else
             {
                 // ── Named callee — function table lookup ──────────────────────

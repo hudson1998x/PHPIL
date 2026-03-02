@@ -1,11 +1,7 @@
 ﻿<?php
 
-$closure = function() {
-    print("Closure works");
-}
+require_once('Samples/second.php');
 
-$otherMethod = "print";
-
-$otherMethod("dynamic access works");
-
-$closure();
+(function(){
+    print("Hello World");
+})();
