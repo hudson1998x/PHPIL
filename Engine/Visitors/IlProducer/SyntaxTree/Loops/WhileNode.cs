@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Reflection.Emit;
+using PHPIL.Engine.Runtime.Types;
 using PHPIL.Engine.Visitors;
 using PHPIL.Engine.Visitors.IlProducer;
 
@@ -24,31 +25,21 @@ namespace PHPIL.Engine.SyntaxTree
         /// </para>
         /// <list type="number">
         /// <item>
-        /// <description>Defines labels for the start and end of the loop.</description>
+        /// <description>Defines labels for the start, end (break), and continue points of the loop.</description>
         /// </item>
         /// <item>
-        /// <description>Marks the loop start label.</description>
+        /// <description>Pushes a <see cref="LoopContext"/> onto the producer's control flow stack.</description>
         /// </item>
         /// <item>
-        /// <description>Evaluates the loop condition, leaving a <see cref="PHPIL.Engine.Runtime.Types.PhpValue"/> on the stack.</description>
+        /// <description>Evaluates the loop condition and branches to the end if false.</description>
         /// </item>
         /// <item>
-        /// <description>Converts the <see cref="PhpValue"/> to a <c>bool</c> and branches to the end if false.</description>
+        /// <description>Visits the loop body, allowing nested break/continue statements to resolve their jump targets.</description>
         /// </item>
         /// <item>
-        /// <description>Visits the loop body, emitting IL for each statement.</description>
-        /// </item>
-        /// <item>
-        /// <description>Branches back to the loop start to continue iteration.</description>
-        /// </item>
-        /// <item>
-        /// <description>Marks the loop end label. Ensures that the loop leaves no value on the evaluation stack, since <c>while</c> is a statement.</description>
+        /// <description>Cleans up the control flow stack upon exiting the loop.</description>
         /// </item>
         /// </list>
-        /// <para>
-        /// If the visitor is not an <see cref="IlProducer"/>, the method recursively traverses
-        /// <see cref="Expression"/> and <see cref="Body"/> without emitting IL.
-        /// </para>
         /// </remarks>
         public override void Accept(IVisitor visitor, in ReadOnlySpan<char> source)
         {
@@ -62,31 +53,42 @@ namespace PHPIL.Engine.SyntaxTree
 
             var il = ilProducer.GetILGenerator();
 
-            // 1. Define labels
+            // 1. Define labels for the loop structure.
+            // In a while loop, the 'continue' target is the same as the 'condition' check.
             Label loopStart = il.DefineLabel();
             Label loopEnd = il.DefineLabel();
 
-            // 2. Mark start of loop
+            // 2. Register this loop in the producer's loop stack.
+            // This allows 'BreakNode' and 'ContinueNode' to find where to jump.
+            // For a 'while', continuing means jumping back to the condition check.
+            ilProducer.PushLoop(new LoopContext(loopEnd, loopStart));
+
+            // 3. Mark start of loop (Condition Check)
             il.MarkLabel(loopStart);
 
-            // 3. Evaluate condition
-            Expression?.Accept(visitor, source); 
-            // Stack: [PhpValue]
+            // 4. Evaluate condition
+            if (Expression != null)
+            {
+                Expression.Accept(visitor, source);
+                // Convert PhpValue to bool for the jump
+                il.Emit(OpCodes.Callvirt, typeof(PhpValue).GetMethod("ToBool")!);
+                il.Emit(OpCodes.Brfalse, loopEnd);
+            }
 
-            // Convert PhpValue to bool for the jump
-            il.Emit(OpCodes.Callvirt, typeof(PHPIL.Engine.Runtime.Types.PhpValue).GetMethod("ToBool")!);
-            il.Emit(OpCodes.Brfalse, loopEnd);
-
-            // 4. Visit body
+            // 5. Visit body
+            // Any BreakNode or ContinueNode visited inside here will use the labels we just pushed.
             Body?.Accept(visitor, source);
 
-            // 5. Jump back to start
+            // 6. Jump back to start to re-evaluate condition
             il.Emit(OpCodes.Br, loopStart);
 
-            // 6. Mark end
+            // 7. Mark the exit point (Break Target)
             il.MarkLabel(loopEnd);
 
-            // 7. CRITICAL: A while loop is a statement. It leaves nothing on the stack.
+            // 8. Clean up the loop stack now that we are exiting the loop's scope.
+            ilProducer.PopLoop();
+
+            // 9. CRITICAL: A while loop is a statement. It leaves nothing on the stack.
             ilProducer.LastEmittedType = null;
         }
     }

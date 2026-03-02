@@ -3,11 +3,10 @@
 require_once('Samples/second.php');
 
 
-$end = 5;
-$start = 0;
-
-while($start < $end)
-{
-    print("Start " . $start . ", End " . $end . "\n"); 
-    $start++;   
+while(true) {
+    while(true) {
+        break 2;
+    }
 }
+
+print("She's still working!");

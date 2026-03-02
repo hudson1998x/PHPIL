@@ -161,4 +161,37 @@ public partial class IlProducer : IVisitor
         _ilGenerator.Emit(OpCodes.Ret);
         _runtimeMethod?.Invoke(null, null);
     }
+    
+    // The stack of active loops. The top of the stack (Peek) is always 
+    // the innermost loop relative to the current visitor position.
+    private readonly Stack<LoopContext> _loopStack = new();
+
+    /// <summary>
+    /// Pushes a new loop's jump targets onto the stack. 
+    /// Should be called by loop nodes (While, For, Foreach) before visiting their body.
+    /// </summary>
+    public void PushLoop(LoopContext context) => _loopStack.Push(context);
+
+    /// <summary>
+    /// Removes the current loop targets from the stack.
+    /// Should be called by loop nodes after the body has been visited.
+    /// </summary>
+    public void PopLoop() => _loopStack.Pop();
+
+    /// <summary>
+    /// Resolves a loop context based on the PHP nesting level (e.g., 'break 2;').
+    /// PHP levels are 1-based, where 1 is the innermost loop.
+    /// </summary>
+    /// <param name="level">The number of nesting levels to look back.</param>
+    /// <returns>The targeted LoopContext, or null if the level exceeds the stack depth.</returns>
+    public LoopContext? GetLoopAtLevel(int level)
+    {
+        if (level <= 0 || level > _loopStack.Count) 
+            return null;
+
+        // Converting to array allows us to index from the top (Innermost = Index 0)
+        // without destructive popping.
+        var frames = _loopStack.ToArray();
+        return frames[level - 1];
+    }
 }

@@ -91,6 +91,14 @@ public static class Parser
                 break;
             }
 
+            case TokenKind.Break:
+            {
+                var production = new BreakStatement();
+                var match      = production.Init()(tokens, source, pointer);
+                if (match.Success) { pointer = match.End; return production.Node; }
+                break;
+            }
+
             // `while`, `for`, and `foreach` all share the same shape:
             // keyword → parenthesised expression → block body.
             case TokenKind.While:
