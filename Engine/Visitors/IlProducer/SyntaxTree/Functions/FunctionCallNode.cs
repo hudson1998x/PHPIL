@@ -167,7 +167,7 @@ namespace PHPIL.Engine.SyntaxTree
         internal static PhpCallable ResolveNamed(string funcName)
         {
             if (GlobalRuntimeContext.FunctionTable.TryGetValue(funcName, out var phpFunc))
-                return phpFunc.Action;
+                return phpFunc.Action!;
             throw new InvalidOperationException($"Call to undefined function '{funcName}'");
         }
 
@@ -188,7 +188,7 @@ namespace PHPIL.Engine.SyntaxTree
 
                 case string funcName:
                     if (GlobalRuntimeContext.FunctionTable.TryGetValue(funcName, out var phpFunc))
-                        return new PhpValue(phpFunc.Action(args));
+                        return new PhpValue(phpFunc.Action!(args));
                     throw new InvalidOperationException($"Call to undefined function '{funcName}'");
 
                 default:
