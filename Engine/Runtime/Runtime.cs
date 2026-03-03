@@ -17,20 +17,28 @@ public static class Runtime
     public static void Execute(in ReadOnlySpan<char> fileContent, string fileName = "vm:0")
     {
         var tokens = Lexer.ParseSpan(fileContent);
-        var span = (ReadOnlySpan<Token>) tokens.AsSpan();
-        var ast = Parser.Parse(in tokens, in fileContent);
-        var ilVisitor = new ILVisitor();
-        var visitors = new Visitor(
-            ilVisitor
-        );
-
+        
         var builder = new StringBuilder();
-        ast.ToJson(in fileContent, in span, builder);
+
+        builder.AppendLine("Tokens: [");
+        foreach (var token in tokens)
+        {
+            token.ToJson(in fileContent, builder);
+        }
+        builder.AppendLine("]");
         
         Console.WriteLine(builder.ToString());
         
+        var span = (ReadOnlySpan<Token>) tokens.AsSpan();
+        var ast = Parser.Parse(in tokens, in fileContent);
+        
+        var visitors = new Visitor(
+            
+        );
+
+        
+        
+        ast.ToJson(in fileContent, in span, builder);
         ast?.Accept(visitors, in fileContent);
-        Console.WriteLine(ilVisitor.DumpIL());
-        ilVisitor.Execute();
     }
 }

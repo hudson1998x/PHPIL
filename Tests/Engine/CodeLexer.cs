@@ -71,11 +71,12 @@ public class CodeLexerTests : BaseTest
 	[PHPILTest]
 	public void Keywords_ShouldBe_CaseInsensitive()
 	{
-		var kinds = GetKinds("if else while for function return");
+		var kinds = GetKinds("if else while for function return as ");
 		var expected = new[]
 		{
 			TokenKind.If, TokenKind.Else, TokenKind.While,
-			TokenKind.For, TokenKind.Function, TokenKind.Return
+			TokenKind.For, TokenKind.Function, TokenKind.Return,
+			TokenKind.As
 		};
 		AssertEqual(expected, kinds);
 	}

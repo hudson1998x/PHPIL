@@ -26,10 +26,15 @@ public class RuntimeContext
         }
         return false;
     }
-
-    // FIX: Pass the ILGenerator through so the frame can declare the local
+    
     public int RegisterVariable(string name, ILGenerator il)
     {
         return _stackFrames.Peek().RegisterVariable(name, il);
     }
+
+    public int RegisterTypedVariable(string name, ILGenerator il, Type type)
+    {
+        return _stackFrames.Peek().RegisterTypedVariable(name, il, type);
+    }
+
 }

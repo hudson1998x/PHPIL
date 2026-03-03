@@ -12,7 +12,7 @@ public static partial class Lexer
         // a fair assumption is made here, there will never be
         // more tokens than half, considering legal strings are a minimum of 2 chars,
         // variables are a minimum of 2 chars, keywords >= 2 chars
-        var tokens = new Token[isTestSuite ? sourceSpan.Length : sourceSpan.Length / 2];
+        var tokens = new Token[sourceSpan.Length];
         var tokenIndex = 0;
 
         // hold the current pointer, this should ALWAYS increment, at least by 1
@@ -461,6 +461,13 @@ public static partial class Lexer
                 // If no keyword matches, goto default to fall through to identifier.
                 
                 case 'a':
+                    
+                    if (IsSequence(in sourceSpan, position, 'a', 's')
+                        && IsKeywordBoundary(in sourceSpan, position + 2))
+                    {
+                        AddToken(TokenKind.As, position + 2);
+                        continue;
+                    }
                     if (IsSequence(in sourceSpan, position, 'a', 'b', 's', 't', 'r', 'a', 'c', 't')
                         && IsKeywordBoundary(in sourceSpan, position + 8))
                     {

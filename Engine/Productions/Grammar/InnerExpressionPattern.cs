@@ -1,11 +1,16 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.Visitors;
+using System.Collections.Generic;
 
 namespace PHPIL.Engine.Productions.Patterns
 {
+    /// <summary>
+    /// Pratt parser / expression climber
+    /// </summary>
     public class InnerExpressionPattern : Pattern
     {
         private readonly int _minPrecedence;
@@ -14,18 +19,15 @@ namespace PHPIL.Engine.Productions.Patterns
 
         public override bool TryMatch(ref ParserContext ctx, out SyntaxNode? result)
         {
-            // 1. THE NUD PHASE: Must consume at least one token via ParseAtom
-            var left = Parser.ParseAtom(ref ctx);
-            if (left == null)
-            {
-                result = null;
-                return false;
-            }
+            result = null;
 
-            // 2. THE LED PHASE (The Climber)
+            // 1. Parse the initial "nud" token (atom)
+            var left = Parser.ParseAtom(ref ctx);
+            if (left == null) return false;
+
+            // 2. Parse operators ("led" phase)
             while (!ctx.IsAtEnd)
             {
-                // *** FIX: Skip whitespace/newlines before peeking for an operator ***
                 Parser.SkipTrivia(ref ctx);
                 if (ctx.IsAtEnd) break;
 
@@ -43,13 +45,11 @@ namespace PHPIL.Engine.Productions.Patterns
                 else
                 {
                     int nextMin = isRightAssoc ? precedence - 1 : precedence;
-
-                    // *** FIX: Skip whitespace/newlines before parsing the right-hand side ***
                     Parser.SkipTrivia(ref ctx);
 
                     if (new InnerExpressionPattern(nextMin).TryMatch(ref ctx, out var right))
                     {
-                        left = new BinaryOpNode()
+                        left = new BinaryOpNode
                         {
                             Left = left as ExpressionNode,
                             Right = right as ExpressionNode,
@@ -80,6 +80,9 @@ namespace PHPIL.Engine.Productions.Patterns
         };
     }
 
+    /// <summary>
+    /// Prefix expression (+$a, ++$x)
+    /// </summary>
     public class PrefixExpressionNode : ExpressionNode
     {
         public Token Operator { get; }
@@ -101,12 +104,14 @@ namespace PHPIL.Engine.Productions.Patterns
             builder.Append("\"operator\": ");
             Operator.ToJson(in span, builder);
             builder.Append(",\"operand\": ");
-            if (Operand != null) Operand.ToJson(in span, in tokens, builder);
-            else builder.Append("null");
+            Operand?.ToJson(in span, in tokens, builder);
             builder.Append("}");
         }
     }
 
+    /// <summary>
+    /// Postfix expression ($i++, $i--)
+    /// </summary>
     public class PostfixExpressionNode : ExpressionNode
     {
         public SyntaxNode Operand { get; }
@@ -128,12 +133,14 @@ namespace PHPIL.Engine.Productions.Patterns
             builder.Append("\"operator\": ");
             Operator.ToJson(in span, builder);
             builder.Append(",\"operand\": ");
-            if (Operand != null) Operand.ToJson(in span, in tokens, builder);
-            else builder.Append("null");
+            Operand?.ToJson(in span, in tokens, builder);
             builder.Append("}");
         }
     }
 
+    /// <summary>
+    /// Helper collection for grammar expressions
+    /// </summary>
     public partial class ExpressionCollection
     {
         public InnerExpressionPattern Inner(int minPrecedence = 0) => new InnerExpressionPattern(minPrecedence);

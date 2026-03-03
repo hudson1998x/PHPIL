@@ -10,64 +10,59 @@ namespace PHPIL.Engine.Productions.Patterns
         {
             result = null;
             int start = ctx.Save();
+            Parser.SkipTrivia(ref ctx);
 
-            // 1. Match the Variable ($var)
-            if (ctx.Peek().Kind != TokenKind.Variable) return false;
-            var targetToken = ctx.Consume();
+            // 1. Match variable
+            if (ctx.IsAtEnd || ctx.Peek().Kind != TokenKind.Variable) return false;
+            var varToken = ctx.Consume();
+            Parser.SkipTrivia(ref ctx);
 
-            // Skip any whitespace between $var and =
-            SkipTrivia(ref ctx);
-
-            // 2. Match the Assignment Operator (=)
-            if (ctx.Peek().Kind != TokenKind.AssignEquals)
+            // 2. Match '='
+            if (ctx.IsAtEnd || ctx.Peek().Kind != TokenKind.AssignEquals)
             {
                 ctx.Restore(start);
                 return false;
             }
             ctx.Consume();
+            Parser.SkipTrivia(ref ctx);
 
-            // Skip any whitespace between = and expression
-            SkipTrivia(ref ctx);
+            // 3. Match RHS (array literal OR any expression)
+            ExpressionNode? valueNode = null;
 
-            // 3. Match the Expression
-            var expr = new InnerExpressionPattern(0);
-            if (!expr.TryMatch(ref ctx, out var valueNode))
+            if (Grammar.ArrayLiteral().TryMatch(ref ctx, out var arrayLiteral))
+            {
+                valueNode = arrayLiteral as ExpressionNode;
+            }
+            else if (!new InnerExpressionPattern(0).TryMatch(ref ctx, out var expr))
             {
                 ctx.Restore(start);
                 return false;
             }
-
-            // Skip any whitespace before ;
-            SkipTrivia(ref ctx);
-
-            // 4. Match the Semicolon
-            if (ctx.Peek().Kind != TokenKind.ExpressionTerminator)
+            else
             {
-                // In some contexts (like for loops), the terminator might be different,
-                // but for a standard statement assignment, we expect ';'
+                valueNode = expr as ExpressionNode;
+            }
+
+            Parser.SkipTrivia(ref ctx);
+
+            // 4. Match ';'
+            if (ctx.IsAtEnd || ctx.Peek().Kind != TokenKind.ExpressionTerminator)
+            {
                 ctx.Restore(start);
                 return false;
             }
-            ctx.Consume();
+            ctx.Consume(); // ';'
 
+            // 5. Build assignment node
             result = new BinaryOpNode
             {
-                Left = new VariableNode { Token = targetToken },
-                Operator = TokenKind.AssignEquals,
+                Left = new VariableNode { Token = varToken },
                 Right = valueNode!,
+                Operator = TokenKind.AssignEquals,
                 RangeStart = start,
                 RangeEnd = ctx.Position
             };
-
             return true;
-        }
-
-        private void SkipTrivia(ref ParserContext ctx)
-        {
-            while (!ctx.IsAtEnd && (ctx.Peek().Kind == TokenKind.Whitespace || ctx.Peek().Kind == TokenKind.NewLine))
-            {
-                ctx.Consume();
-            }
         }
     }
 }

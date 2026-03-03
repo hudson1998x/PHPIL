@@ -654,5 +654,6 @@ public enum TokenKind : byte
     #endregion
 
     BitwiseAnd,
-    Pipe
+    Pipe,
+    As
 }

@@ -13,4 +13,9 @@ public static partial class Grammar
     {
         return new();
     }
+
+    public static ForeachExpressionPattern ForeachExpression()
+    {
+        return new();
+    }
 }

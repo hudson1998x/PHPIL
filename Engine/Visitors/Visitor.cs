@@ -1,5 +1,6 @@
 ﻿using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.SyntaxTree.Structure.Loops;
 
 namespace PHPIL.Engine.Visitors;
 
@@ -40,6 +41,11 @@ public class Visitor : IVisitor
     public void VisitPostfixExpressionNode(PostfixExpressionNode node, in ReadOnlySpan<char> source)
     {
         foreach (var visitor in _visitors) visitor.VisitPostfixExpressionNode(node, in source);
+    }
+
+    public void VisitArrayLiteralNode(ArrayLiteralNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitArrayLiteralNode(node, in source);
     }
 
     public void VisitPrefixExpressionNode(PrefixExpressionNode node, in ReadOnlySpan<char> source)
@@ -155,5 +161,10 @@ public class Visitor : IVisitor
     public void VisitFunctionNode(FunctionNode node, in ReadOnlySpan<char> source)
     {
         foreach (var visitor in _visitors) visitor.VisitFunctionNode(node, in source);
+    }
+
+    public void VisitForeachNode(ForeachNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitForeachNode(node, in source);
     }
 }

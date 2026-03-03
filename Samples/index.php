@@ -1,6 +1,15 @@
 ﻿<?php
 
-for($i = 0;$i < 10;$i++)
+
+// for($i = 0;$i < 5;$i++)
+// {
+//     print("For loop works (" . $i . ")");    
+// }
+
+$a = 0;
+
+while($a < 5)
 {
-    var_dump($i);    
+    print("whileWorks(" . $i . ")");
+    $a++;
 }
