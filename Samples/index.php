@@ -1,10 +1,7 @@
 ﻿<?php
 
-function test_something(string $username)
-{
-    if (5 > 3) {
-        print("Hello World: " . $username);
-    }   
+$callable = function(string $username) {
+    print("Hello, " . $username);
 }
 
-test_something("Hola!");
+$callable("John");

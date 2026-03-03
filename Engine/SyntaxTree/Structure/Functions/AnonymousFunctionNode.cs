@@ -2,6 +2,7 @@
 
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.Visitors;
 
 namespace PHPIL.Engine.SyntaxTree
 {
@@ -11,6 +12,11 @@ namespace PHPIL.Engine.SyntaxTree
         public List<UseCapture>        UseCaptures { get; init; } = [];
         public Token?                   ReturnType  { get; init; }  // default if absent
         public BlockNode?              Body        { get; init; }
+
+        public override void Accept(IVisitor visitor, in ReadOnlySpan<char> source)
+        {
+            visitor.VisitAnonymousFunctionNode(this, source);
+        }
     }
 
     public class UseCapture

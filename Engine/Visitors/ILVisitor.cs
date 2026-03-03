@@ -342,14 +342,35 @@ public class ILVisitor : IVisitor
 
     public void VisitFunctionCallNode(FunctionCallNode node, in ReadOnlySpan<char> source)
     {
+        // 1. Load function name — identifier or variable
         if (node.Callee is IdentifierNode idNode)
+        {
             Emit(OpCodes.Ldstr, idNode.Token.TextValue(source));
+        }
+        else if (node.Callee is VariableNode calleeVar)
+        {
+            // $callable(...) — load the PhpValue, extract the stored function name
+            string varName = calleeVar.Token.TextValue(source);
+            if (_context.TryGetVariableSlot(varName, out int varSlot))
+            {
+                _ilLog.Add($"ldloc local_{varSlot} ; {varName} (callable)");
+                _il.Emit(OpCodes.Ldloc, varSlot);
+            }
+            else
+            {
+                _ilLog.Add($"; WARNING: callable {varName} not found");
+                _il.Emit(OpCodes.Ldsfld, typeof(PhpValue).GetField("Null")!);
+            }
+            _il.Emit(OpCodes.Callvirt, typeof(PhpValue).GetMethod("ToStringValue")!);
+            _ilLog.Add("callvirt PhpValue.ToStringValue ; resolve callable name");
+        }
         else if (node.Callee != null)
         {
             node.Callee.Accept(this, source);
             Emit(OpCodes.Callvirt, typeof(object).GetMethod("ToString")!);
         }
 
+        // 2. Build PhpValue[] args
         Emit(OpCodes.Ldc_I4, node.Args.Count);
         Emit(OpCodes.Newarr, typeof(PhpValue));
 
@@ -362,6 +383,7 @@ public class ILVisitor : IVisitor
             Emit(OpCodes.Stelem_Ref);
         }
 
+        // 3. Dispatch
         Emit(OpCodes.Call, typeof(GlobalRuntimeContext).GetMethod("CallFunction",
             System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)!);
     }
@@ -400,7 +422,10 @@ public class ILVisitor : IVisitor
     public void VisitTernaryNode(TernaryNode node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
     public void VisitSyntaxNode(SyntaxNode node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
     public void VisitReturnNode(ReturnNode node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
-    public void VisitIdentifierNode(IdentifierNode node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
+    public void VisitIdentifierNode(IdentifierNode node, in ReadOnlySpan<char> source) 
+    {
+            
+    }
     public void VisitGroupNode(GroupNode node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
     public void VisitExpressionNode(ExpressionNode node, in ReadOnlySpan<char> source)
     {
@@ -462,5 +487,60 @@ public class ILVisitor : IVisitor
     }
 
     public void VisitFunctionParameter(FunctionParameter node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
-    public void VisitAnonymousFunctionNode(AnonymousFunctionNode node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
+
+    public void VisitAnonymousFunctionNode(AnonymousFunctionNode node, in ReadOnlySpan<char> source)
+    {
+        // Generate a unique internal name
+        string funcName = $"phpil_anon_{Guid.NewGuid():N}";
+
+        var method = new DynamicMethod(
+            funcName,
+            typeof(PhpValue),
+            new[] { typeof(PhpValue[]) },
+            typeof(ILVisitor).Module);
+
+        var funcContext = new RuntimeContext();
+        var funcIl = method.GetILGenerator();
+        var funcVisitor = new ILVisitor(funcContext, funcIl, _ilLog);
+
+        // Unpack params
+        for (int i = 0; i < node.Params.Count; i++)
+        {
+            string paramName = node.Params[i].Name.TextValue(source);
+            int slot = funcContext.RegisterVariable(paramName, funcIl);
+            funcIl.Emit(OpCodes.Ldarg_0);
+            funcIl.Emit(OpCodes.Ldc_I4, i);
+            funcIl.Emit(OpCodes.Ldelem_Ref);
+            funcIl.Emit(OpCodes.Stloc, slot);
+            _ilLog.Add($"; anon param[{i}] {paramName} -> local_{slot}");
+        }
+
+        // Compile body
+        if (node.Body != null)
+            foreach (var stmt in node.Body.Statements)
+            {
+                stmt.Accept(funcVisitor, source);
+                funcIl.Emit(OpCodes.Pop);
+            }
+
+        // Default return
+        funcIl.Emit(OpCodes.Ldsfld, typeof(PhpValue).GetField("Null")!);
+        funcIl.Emit(OpCodes.Ret);
+
+        // Register in function table
+        var compiled = (PhpCallable)method.CreateDelegate(typeof(PhpCallable));
+        GlobalRuntimeContext.FunctionTable[funcName] = new PhpFunction
+        {
+            Name = funcName,
+            IsSystem = false,
+            IsCompiled = true,
+            Action = compiled
+        };
+
+        // Push a PhpValue(string) containing the function name so it can be
+        // stored in a variable and later looked up via CallFunction
+        _il.Emit(OpCodes.Ldstr, funcName);
+        _il.Emit(OpCodes.Newobj, typeof(PhpValue).GetConstructor(new[] { typeof(string) })!);
+        _ilLog.Add($"ldstr \"{funcName}\" / newobj PhpValue(string) ; anon fn ref");
+    }
 }

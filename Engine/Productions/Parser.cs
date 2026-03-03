@@ -43,6 +43,7 @@ public static class Parser
         {
             case TokenKind.Function:
                 if (Grammar.FunctionDeclaration().TryMatch(ref ctx, out var fn)) return fn;
+                if (Grammar.AnonymousFunction().TryMatch(ref ctx, out var an)) return an;
                 break;
 
             case TokenKind.If:
@@ -98,7 +99,38 @@ public static class Parser
 
             // --- TERMINALS ---
             case TokenKind.Variable:
-                return new VariableNode { Token = ctx.Consume() };
+            {
+                var varToken = ctx.Consume();
+                // Check if this is a variable call: $callable(...)
+                Parser.SkipTrivia(ref ctx);
+                if (!ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.LeftParen)
+                {
+                    // Treat as a function call with a VariableNode callee
+                    ctx.Consume(); // consume '('
+                    var args = new List<ExpressionNode>();
+                    while (!ctx.IsAtEnd && ctx.Peek().Kind != TokenKind.RightParen)
+                    {
+                        if (new InnerExpressionPattern(0).TryMatch(ref ctx, out var arg))
+                            args.Add((ExpressionNode)arg!);
+                        Parser.SkipTrivia(ref ctx);
+                        if (!ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.Comma) ctx.Consume();
+                        else break;
+                    }
+                    if (!ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.RightParen) ctx.Consume();
+                    return new FunctionCallNode
+                    {
+                        Callee = new VariableNode { Token = varToken },
+                        Args = args
+                    };
+                }
+                return new VariableNode { Token = varToken };
+            }
+            
+            case TokenKind.Function:
+            {
+                if (Grammar.AnonymousFunction().TryMatch(ref ctx, out var anon)) return anon;
+                break;
+            }
 
             case TokenKind.IntLiteral:
             case TokenKind.StringLiteral:
