@@ -45,6 +45,10 @@ public static class Parser
                 if (Grammar.FunctionDeclaration().TryMatch(ref ctx, out var fn)) return fn;
                 if (Grammar.AnonymousFunction().TryMatch(ref ctx, out var an)) return an;
                 break;
+            
+            case TokenKind.Return:
+                if (Grammar.Return().TryMatch(ref ctx, out var returnNode)) return returnNode;
+                break;
 
             case TokenKind.If:
                 if (Grammar.If().TryMatch(ref ctx, out var ifNode)) return ifNode;

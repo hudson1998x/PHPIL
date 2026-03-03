@@ -22,7 +22,7 @@ public static partial class GlobalRuntimeContext
                     // Use DebugInfo() to get value representation
                     
 
-                    Stdout.Write($"{typeName}: TODO");
+                    Stdout.Write($"{typeName}: {item.ToStringValue()}");
                 }
 
                 // var_dump in PHP does not return a value, so return Void

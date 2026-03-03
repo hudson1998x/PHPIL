@@ -505,7 +505,12 @@ public class ILVisitor : IVisitor
     public void VisitUnaryOpNode(UnaryOpNode node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
     public void VisitTernaryNode(TernaryNode node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
     public void VisitSyntaxNode(SyntaxNode node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
-    public void VisitReturnNode(ReturnNode node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
+
+    public void VisitReturnNode(ReturnNode node, in ReadOnlySpan<char> source)
+    {
+        node.Expression?.Accept(this, source);
+        Emit(OpCodes.Ret);
+    }
     public void VisitIdentifierNode(IdentifierNode node, in ReadOnlySpan<char> source) { }
     public void VisitGroupNode(GroupNode node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
     public void VisitExpressionNode(ExpressionNode node, in ReadOnlySpan<char> source)
