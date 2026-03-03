@@ -2,6 +2,7 @@
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.Visitors;
 
 namespace PHPIL.Engine.Productions.Patterns
@@ -153,51 +154,7 @@ namespace PHPIL.Engine.Productions.Patterns
             return true;
         }
     }
-
-    public class ArrayItemNode : SyntaxNode
-    {
-        public ExpressionNode? Key { get; set; }
-        public ExpressionNode Value { get; set; } = null!;
-
-        public override void Accept(IVisitor visitor, in ReadOnlySpan<char> source)
-        {
-            Key?.Accept(visitor, source);
-            Value.Accept(visitor, source);
-        }
-
-        public override void ToJson(in ReadOnlySpan<char> span, in ReadOnlySpan<Token> tokens, StringBuilder builder)
-        {
-            builder.Append("{");
-            if (Key != null)
-            {
-                builder.Append("\"key\":");
-                Key.ToJson(in span, in tokens, builder);
-                builder.Append(",");
-            }
-            builder.Append("\"value\":");
-            Value.ToJson(in span, in tokens, builder);
-            builder.Append("}");
-        }
-    }
-
-    public class ArrayLiteralNode : ExpressionNode
-    {
-        public List<ArrayItemNode> Items { get; set; } = new List<ArrayItemNode>();
-
-        public override void Accept(IVisitor visitor, in ReadOnlySpan<char> source)
-            => visitor.VisitArrayLiteralNode(this, source);
-
-        public override void ToJson(in ReadOnlySpan<char> span, in ReadOnlySpan<Token> tokens, StringBuilder builder)
-        {
-            builder.Append("{\"type\":\"ArrayLiteralNode\",\"items\":[");
-            for (int i = 0; i < Items.Count; i++)
-            {
-                Items[i].ToJson(in span, in tokens, builder);
-                if (i < Items.Count - 1) builder.Append(",");
-            }
-            builder.Append("]}");
-        }
-    }
+    
 }
 
 namespace PHPIL.Engine.Productions

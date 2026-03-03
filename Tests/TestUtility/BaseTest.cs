@@ -28,4 +28,10 @@ public abstract class BaseTest
             ? tokens.Where(t => t.Kind is not (TokenKind.Whitespace or TokenKind.NewLine)).Select(t => t.Kind).ToList() 
             : tokens.Select(t => t.Kind).ToList();
     }
+    
+    protected void AssertNotNull(object? obj, string? message = null)
+    {
+        if (obj is null)
+            throw new Exception(message ?? "Expected object to be not null, but it was null.");
+    }
 }
