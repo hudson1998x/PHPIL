@@ -27,6 +27,8 @@ public static partial class GlobalRuntimeContext
     /// </para>
     /// </summary>
     public static readonly Dictionary<string, PhpFunction> FunctionTable = [];
+    
+    
 
     /// <summary>
     /// Compile-time constant pool — a flat list of <see cref="PhpValue"/> instances

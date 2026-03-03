@@ -27,7 +27,7 @@ public class AnonymousFunctionPattern : Pattern
             ctx.Consume();
             SkipTrivia(ref ctx);
             // Assuming UseListPattern is implemented similarly
-            if (Grammar.UseList().TryMatch(ref ctx, out var uNode) && uNode is UseCaptureListNode uList)
+            if (Productions.Grammar.UseList().TryMatch(ref ctx, out var uNode) && uNode is UseCaptureListNode uList)
             {
                 captures = uList.Captures;
             }
@@ -43,7 +43,7 @@ public class AnonymousFunctionPattern : Pattern
             SkipTrivia(ref ctx);
         }
 
-        if (!Grammar.Block().TryMatch(ref ctx, out var bodyNode))
+        if (!Productions.Grammar.Block().TryMatch(ref ctx, out var bodyNode))
         {
             ctx.Restore(start);
             return false;

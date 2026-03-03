@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions;
+using PHPIL.Engine.Visitors;
 
 namespace PHPIL.Engine.Runtime;
 
@@ -18,7 +19,18 @@ public static class Runtime
         var tokens = Lexer.ParseSpan(fileContent);
         var span = (ReadOnlySpan<Token>) tokens.AsSpan();
         var ast = Parser.Parse(in tokens, in fileContent);
+        var ilVisitor = new ILVisitor();
+        var visitors = new Visitor(
+            ilVisitor
+        );
+
+        var builder = new StringBuilder();
+        ast.ToJson(in fileContent, in span, builder);
         
+        Console.WriteLine(builder.ToString());
         
+        ast?.Accept(visitors, in fileContent);
+        Console.WriteLine(ilVisitor.DumpIL());
+        ilVisitor.Execute();
     }
 }

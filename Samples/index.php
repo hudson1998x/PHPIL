@@ -1,10 +1,5 @@
 ﻿<?php
 
-$user = "John";
-
-function print_username(string $username): void
-{
-    print("Hello, " . $username);    
+if (5 > 3) {
+    print("Hello World");
 }
-
-print_username($username);

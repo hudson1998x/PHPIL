@@ -1,4 +1,5 @@
 ﻿using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.Visitors;
 
 namespace PHPIL.Engine.SyntaxTree
 {
@@ -6,6 +7,11 @@ namespace PHPIL.Engine.SyntaxTree
     {
         public ExpressionNode? Callee { get; init; }  // what's being called
         public List<ExpressionNode> Args { get; init; } = [];
+
+        public override void Accept(IVisitor visitor, in ReadOnlySpan<char> source)
+        {
+            visitor.VisitFunctionCallNode(this, source);
+        }
     }
 }
 namespace PHPIL.Engine.Visitors

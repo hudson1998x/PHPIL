@@ -1,10 +1,16 @@
 ﻿using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.Visitors;
 
 namespace PHPIL.Engine.SyntaxTree
 {
     public partial class ExpressionNode : SyntaxNode
     {
         public List<SyntaxNode> Statements = [];
+
+        public override void Accept(IVisitor visitor, in ReadOnlySpan<char> source)
+        {
+            visitor.VisitExpressionNode(this, source);
+        }
     }
 }
 namespace PHPIL.Engine.Visitors

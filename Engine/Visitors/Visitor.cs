@@ -27,6 +27,7 @@ public class Visitor : IVisitor
     {
         foreach (var visitor in _visitors)
         {
+            // We use Accept to ensure the most specific Visit method is called on the inner visitors
             node.Accept(visitor, in span);
         }
     }
@@ -136,8 +137,7 @@ public class Visitor : IVisitor
         foreach (var visitor in _visitors) visitor.VisitAnonymousFunctionNode(node, in source);
     }
 
-    // Explicitly handling the specific node type mismatch in your interface for ElseIf
-    public void VisitElseIfNode(FunctionCallNode node, in ReadOnlySpan<char> source)
+    public void VisitElseIfNode(ElseIfNode node, in ReadOnlySpan<char> source)
     {
         foreach (var visitor in _visitors) visitor.VisitElseIfNode(node, in source);
     }
@@ -147,7 +147,6 @@ public class Visitor : IVisitor
         foreach (var visitor in _visitors) visitor.VisitFunctionParameter(node, in source);
     }
 
-    // Fallback for generic SyntaxNode visits if not handled by more specific overloads
     public void VisitSyntaxNode(SyntaxNode node, in ReadOnlySpan<char> source)
     {
         foreach (var visitor in _visitors) visitor.VisitSyntaxNode(node, in source);
