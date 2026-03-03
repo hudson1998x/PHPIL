@@ -43,7 +43,7 @@ public class AnonymousFunctionPattern : Pattern
             SkipTrivia(ref ctx);
         }
 
-        if (!Productions.Grammar.Block().TryMatch(ref ctx, out var bodyNode))
+        if (!Grammar.Block().TryMatch(ref ctx, out var bodyNode))
         {
             ctx.Restore(start);
             return false;

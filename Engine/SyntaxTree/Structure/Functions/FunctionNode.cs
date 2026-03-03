@@ -8,6 +8,7 @@ namespace PHPIL.Engine.SyntaxTree
     {
         public Token? TypeHint { get; init; }
         public Token Name     { get; init; }
+        public SyntaxNode? DefaultValue  { get; init; }
     }
 
     public partial class FunctionNode : SyntaxNode

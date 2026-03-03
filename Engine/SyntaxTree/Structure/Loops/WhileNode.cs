@@ -1,4 +1,5 @@
 ﻿using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.Visitors;
 
 namespace PHPIL.Engine.SyntaxTree
 {
@@ -25,6 +26,11 @@ namespace PHPIL.Engine.SyntaxTree
         /// Executed repeatedly as long as <see cref="Expression"/> evaluates to true.
         /// </summary>
         public BlockNode? Body;
+
+        public override void Accept(IVisitor visitor, in ReadOnlySpan<char> source)
+        {
+            visitor.VisitWhileNode(this, source);
+        }
     }
 }
 

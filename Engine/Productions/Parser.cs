@@ -49,6 +49,10 @@ public static class Parser
             case TokenKind.If:
                 if (Grammar.If().TryMatch(ref ctx, out var ifNode)) return ifNode;
                 break;
+            
+            case TokenKind.While:
+                if (Grammar.WhileExpression().TryMatch(ref ctx, out var whileNode)) return whileNode;
+                break;
         }
 
         // The Climber (This is the only way into the expression tree)

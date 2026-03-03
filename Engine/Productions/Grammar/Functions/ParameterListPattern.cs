@@ -21,6 +21,7 @@ public class ParameterListPattern : Pattern
         while (!ctx.IsAtEnd && ctx.Peek().Kind != TokenKind.RightParen)
         {
             Token? typeHint = null;
+            SyntaxNode? defaultValue = null;
 
             // Check for Type Hint: Identifier followed by a Variable
             if (ctx.Peek().Kind == TokenKind.Identifier && PeekNextNonTrivia(ref ctx).Kind == TokenKind.Variable)
@@ -37,22 +38,42 @@ public class ParameterListPattern : Pattern
             }
 
             var nameToken = ctx.Consume();
-            parameters.Add(new FunctionParameter { TypeHint = typeHint, Name = nameToken });
-
             SkipTrivia(ref ctx);
+
+            // Optional default value
+            if (ctx.Peek().Kind == TokenKind.AssignEquals)
+            {
+                ctx.Consume();
+                SkipTrivia(ref ctx);
+
+                if (!Grammar.Expressions.Inner().TryMatch(ref ctx, out var exprNode))
+                {
+                    ctx.Restore(start);
+                    return false;
+                }
+
+                defaultValue = exprNode;
+                SkipTrivia(ref ctx);
+            }
+
+            parameters.Add(new FunctionParameter
+            {
+                TypeHint = typeHint,
+                Name = nameToken,
+                DefaultValue = defaultValue
+            });
 
             // Handle Comma
             if (ctx.Peek().Kind == TokenKind.Comma)
             {
                 ctx.Consume();
                 SkipTrivia(ref ctx);
-                
+
                 // Allow trailing comma
                 if (ctx.Peek().Kind == TokenKind.RightParen) break;
             }
             else if (ctx.Peek().Kind != TokenKind.RightParen)
             {
-                // No comma and no closing paren = invalid syntax
                 ctx.Restore(start);
                 return false;
             }
@@ -64,6 +85,7 @@ public class ParameterListPattern : Pattern
             ctx.Restore(start);
             return false;
         }
+
         ctx.Consume();
 
         result = new ParameterListNode { Parameters = parameters };
@@ -82,15 +104,15 @@ public class ParameterListPattern : Pattern
     {
         for (int i = 1; ; i++)
         {
-            // Safety check against array bounds
             if (ctx.Position + i >= ctx.Tokens.Length) return default;
-            
+
             var tok = ctx.Peek(i);
-            if (tok.Kind is not (TokenKind.Whitespace or TokenKind.NewLine)) 
+            if (tok.Kind is not (TokenKind.Whitespace or TokenKind.NewLine))
                 return tok;
         }
     }
 }
+
 public class ParameterListNode : SyntaxNode
 {
     public List<FunctionParameter> Parameters { get; set; }

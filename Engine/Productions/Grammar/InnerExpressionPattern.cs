@@ -140,6 +140,14 @@ namespace PHPIL.Engine.Productions.Patterns
     }
 }
 
+namespace PHPIL.Engine.Productions
+{
+    public static partial class Grammar
+    {
+        public static ExpressionCollection Expressions = new ExpressionCollection();
+    }
+}
+
 namespace PHPIL.Engine.Visitors
 {
     public partial interface IVisitor
