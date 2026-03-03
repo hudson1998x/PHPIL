@@ -8,4 +8,9 @@ public static partial class Grammar
     {
         return new WhileExpressionPattern();
     }
+    
+    public static ForExpressionPattern ForExpression()
+    {
+        return new();
+    }
 }

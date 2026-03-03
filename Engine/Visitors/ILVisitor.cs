@@ -518,5 +518,52 @@ public class ILVisitor : IVisitor
         foreach (var stmt in node.Statements)
             stmt.Accept(this, source);
     }
-    public void VisitForNode(For node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
+    public void VisitForNode(For node, in ReadOnlySpan<char> source)
+    {
+        var loopStart = _il.DefineLabel();
+        var loopEnd   = _il.DefineLabel();
+
+        // --- initializer ---
+        if (node.Init != null)
+        {
+            node.Init.Accept(this, source);
+            Emit(OpCodes.Pop); // discard result unless needed
+        }
+
+        // --- loop start ---
+        EmitLabel(loopStart);
+
+        // --- condition ---
+        if (node.Condition != null)
+        {
+            node.Condition.Accept(this, source);
+            Emit(OpCodes.Callvirt, PhpValueToBool);
+            _il.Emit(OpCodes.Brfalse, loopEnd);
+        }
+
+        // --- loop body ---
+        if (node.Body != null)
+        {
+            foreach (var stmt in (node.Body as BlockNode)!.Statements)
+            {
+                stmt.Accept(this, source);
+                Emit(OpCodes.Pop);
+            }
+        }
+
+        // --- increment ---
+        if (node.Increment != null)
+        {
+            node.Increment.Accept(this, source);
+            Emit(OpCodes.Pop);
+        }
+
+        // --- jump back to loop start ---
+        _il.Emit(OpCodes.Br, loopStart);
+
+        // --- loop end ---
+        EmitLabel(loopEnd);
+        EmitLoadNull();
+        _ilLog.Add("; for loop result");
+    }
 }

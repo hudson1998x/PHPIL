@@ -1,7 +1,6 @@
 ﻿<?php
 
-function get_number($a): int {
-    return $a + $a;
+for($i = 0;$i < 10;$i++)
+{
+    var_dump($i);    
 }
-
-var_dump(get_number(2));
