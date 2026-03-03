@@ -1,6 +1,16 @@
-﻿namespace PHPIL.Engine.SyntaxTree;
+﻿using PHPIL.Engine.SyntaxTree;
 
-public partial class ExpressionNode : SyntaxNode
+namespace PHPIL.Engine.SyntaxTree
 {
-    public List<SyntaxNode> Statements = [];
+    public partial class ExpressionNode : SyntaxNode
+    {
+        public List<SyntaxNode> Statements = [];
+    }
+}
+namespace PHPIL.Engine.Visitors
+{
+    public partial interface IVisitor
+    {
+        void VisitExpressionNode(ExpressionNode node, in ReadOnlySpan<char> source);
+    }
 }

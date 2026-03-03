@@ -1,8 +1,18 @@
-﻿namespace PHPIL.Engine.SyntaxTree;
+﻿using PHPIL.Engine.SyntaxTree;
 
-public partial class SyntaxNode
+namespace PHPIL.Engine.SyntaxTree
 {
-    public int RangeStart;
+    public partial class SyntaxNode
+    {
+        public int RangeStart;
     
-    public int RangeEnd;
+        public int RangeEnd;
+    }
+}
+namespace PHPIL.Engine.Visitors
+{
+    public partial interface IVisitor
+    {
+        void VisitSyntaxNode(SyntaxNode node, in ReadOnlySpan<char> source);
+    }
 }

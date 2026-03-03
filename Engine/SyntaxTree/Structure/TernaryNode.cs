@@ -1,8 +1,18 @@
-﻿namespace PHPIL.Engine.SyntaxTree;
+﻿using PHPIL.Engine.SyntaxTree;
 
-public partial class TernaryNode : ExpressionNode
+namespace PHPIL.Engine.SyntaxTree
 {
-    public ExpressionNode? Condition { get; init; }
-    public ExpressionNode? Then      { get; init; }
-    public ExpressionNode? Else      { get; init; }
+    public partial class TernaryNode : ExpressionNode
+    {
+        public ExpressionNode? Condition { get; init; }
+        public ExpressionNode? Then      { get; init; }
+        public ExpressionNode? Else      { get; init; }
+    }
+}
+namespace PHPIL.Engine.Visitors
+{
+    public partial interface IVisitor
+    {
+        void VisitTernaryNode(TernaryNode node, in ReadOnlySpan<char> source);
+    }
 }

@@ -7,12 +7,12 @@ public static partial class Lexer
         return ParseSpan(File.ReadAllText(filePath).AsSpan());
     }
 
-    public static Token[] ParseSpan(in ReadOnlySpan<char> sourceSpan)
+    public static Token[] ParseSpan(in ReadOnlySpan<char> sourceSpan, bool isTestSuite = false)
     {
         // a fair assumption is made here, there will never be
         // more tokens than half, considering legal strings are a minimum of 2 chars,
         // variables are a minimum of 2 chars, keywords >= 2 chars
-        var tokens = new Token[sourceSpan.Length / 2];
+        var tokens = new Token[isTestSuite ? sourceSpan.Length : sourceSpan.Length / 2];
         var tokenIndex = 0;
 
         // hold the current pointer, this should ALWAYS increment, at least by 1
@@ -419,6 +419,10 @@ public static partial class Lexer
                 // =====================
                 
                 case '?':
+                    if (IsSequence(in sourceSpan, position, '?', '>'))
+                    {
+                        AddToken(TokenKind.PhpCloseTag, position + 2);
+                    }
                     if (IsSequence(in sourceSpan, position, '?', '?', '='))
                     {
                         AddToken(TokenKind.NullCoalesceAssign, position + 3);
@@ -610,7 +614,7 @@ public static partial class Lexer
                     if (IsSequence(in sourceSpan, position, 'e', 'c', 'h', 'o')
                         && IsKeywordBoundary(in sourceSpan, position + 4))
                     {
-                        AddToken(TokenKind.Echo, position + 4);
+                        AddToken(TokenKind.Identifier, position + 4);
                         continue;
                     }
                     if (IsSequence(in sourceSpan, position, 'e', 'n', 'u', 'm')
@@ -703,13 +707,13 @@ public static partial class Lexer
                     if (IsSequence(in sourceSpan, position, 'i', 'n', 'c', 'l', 'u', 'd', 'e', '_', 'o', 'n', 'c', 'e')
                         && IsKeywordBoundary(in sourceSpan, position + 12))
                     {
-                        AddToken(TokenKind.IncludeOnce, position + 12);
+                        AddToken(TokenKind.Identifier, position + 12);
                         continue;
                     }
                     if (IsSequence(in sourceSpan, position, 'i', 'n', 'c', 'l', 'u', 'd', 'e')
                         && IsKeywordBoundary(in sourceSpan, position + 7))
                     {
-                        AddToken(TokenKind.Include, position + 7);
+                        AddToken(TokenKind.Identifier, position + 7);
                         continue;
                     }
                     if (IsSequence(in sourceSpan, position, 'i', 'f')
@@ -790,7 +794,7 @@ public static partial class Lexer
                     if (IsSequence(in sourceSpan, position, 'p', 'r', 'i', 'n', 't')
                         && IsKeywordBoundary(in sourceSpan, position + 5))
                     {
-                        AddToken(TokenKind.Print, position + 5);
+                        AddToken(TokenKind.Identifier, position + 5);
                         continue;
                     }
                     goto default;
@@ -799,7 +803,7 @@ public static partial class Lexer
                     if (IsSequence(in sourceSpan, position, 'r', 'e', 'q', 'u', 'i', 'r', 'e', '_', 'o', 'n', 'c', 'e')
                         && IsKeywordBoundary(in sourceSpan, position + 12))
                     {
-                        AddToken(TokenKind.RequireOnce, position + 12);
+                        AddToken(TokenKind.Identifier, position + 12);
                         continue;
                     }
                     if (IsSequence(in sourceSpan, position, 'r', 'e', 'a', 'd', 'o', 'n', 'l', 'y')
@@ -817,7 +821,7 @@ public static partial class Lexer
                     if (IsSequence(in sourceSpan, position, 'r', 'e', 'q', 'u', 'i', 'r', 'e')
                         && IsKeywordBoundary(in sourceSpan, position + 7))
                     {
-                        AddToken(TokenKind.Require, position + 7);
+                        AddToken(TokenKind.Identifier, position + 7);
                         continue;
                     }
                     goto default;

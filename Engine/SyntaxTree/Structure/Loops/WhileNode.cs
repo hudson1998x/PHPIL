@@ -1,4 +1,6 @@
-﻿namespace PHPIL.Engine.SyntaxTree
+﻿using PHPIL.Engine.SyntaxTree;
+
+namespace PHPIL.Engine.SyntaxTree
 {
     /// <summary>
     /// Represents a PHP <c>while</c> statement in the abstract syntax tree (AST).
@@ -23,5 +25,13 @@
         /// Executed repeatedly as long as <see cref="Expression"/> evaluates to true.
         /// </summary>
         public BlockNode? Body;
+    }
+}
+
+namespace PHPIL.Engine.Visitors
+{
+    public partial interface IVisitor
+    {
+        void VisitWhileNode(WhileNode node, in ReadOnlySpan<char> source);
     }
 }

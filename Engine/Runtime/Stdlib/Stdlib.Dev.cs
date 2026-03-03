@@ -20,9 +20,9 @@ public static partial class GlobalRuntimeContext
                     var typeName = item.Type.ToString();
 
                     // Use DebugInfo() to get value representation
-                    var valueStr = item.DebugInfo();
+                    
 
-                    Stdout.Write($"{typeName}: {valueStr}");
+                    Stdout.Write($"{typeName}: TODO");
                 }
 
                 // var_dump in PHP does not return a value, so return Void

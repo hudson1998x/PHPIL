@@ -1,12 +1,23 @@
-﻿namespace PHPIL.Engine.SyntaxTree;
+﻿using PHPIL.Engine.SyntaxTree;
 
-public partial class IfNode : SyntaxNode
+namespace PHPIL.Engine.SyntaxTree
 {
-    public ExpressionNode? Expression;
+    public partial class IfNode : SyntaxNode
+    {
+        public ExpressionNode? Expression;
     
-    public BlockNode? Body;
+        public BlockNode? Body;
     
-    public List<ElseIfNode> ElseIfs = [];
+        public List<ElseIfNode> ElseIfs = [];
     
-    public SyntaxNode? ElseNode;
+        public SyntaxNode? ElseNode;
+    }
+}
+
+namespace PHPIL.Engine.Visitors
+{
+    public partial interface IVisitor
+    {
+        void VisitIfNode(IfNode node, in ReadOnlySpan<char> source);
+    }
 }

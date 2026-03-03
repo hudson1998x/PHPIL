@@ -1,0 +1,97 @@
+﻿using System.Collections.Generic;
+using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.SyntaxTree;
+
+namespace PHPIL.Engine.Productions.Patterns;
+
+public class ParameterListPattern : Pattern
+{
+    public override bool TryMatch(ref ParserContext ctx, out SyntaxNode? result)
+    {
+        var parameters = new List<FunctionParameter>();
+        int start = ctx.Save();
+        result = null;
+
+        // 1. Open Paren
+        if (ctx.Peek().Kind != TokenKind.LeftParen) return false;
+        ctx.Consume();
+        SkipTrivia(ref ctx);
+
+        // 2. Parameter Loop
+        while (!ctx.IsAtEnd && ctx.Peek().Kind != TokenKind.RightParen)
+        {
+            Token? typeHint = null;
+
+            // Check for Type Hint: Identifier followed by a Variable
+            if (ctx.Peek().Kind == TokenKind.Identifier && PeekNextNonTrivia(ref ctx).Kind == TokenKind.Variable)
+            {
+                typeHint = ctx.Consume();
+                SkipTrivia(ref ctx);
+            }
+
+            // Must have a Variable name
+            if (ctx.Peek().Kind != TokenKind.Variable)
+            {
+                ctx.Restore(start);
+                return false;
+            }
+
+            var nameToken = ctx.Consume();
+            parameters.Add(new FunctionParameter { TypeHint = typeHint, Name = nameToken });
+
+            SkipTrivia(ref ctx);
+
+            // Handle Comma
+            if (ctx.Peek().Kind == TokenKind.Comma)
+            {
+                ctx.Consume();
+                SkipTrivia(ref ctx);
+                
+                // Allow trailing comma
+                if (ctx.Peek().Kind == TokenKind.RightParen) break;
+            }
+            else if (ctx.Peek().Kind != TokenKind.RightParen)
+            {
+                // No comma and no closing paren = invalid syntax
+                ctx.Restore(start);
+                return false;
+            }
+        }
+
+        // 3. Close Paren
+        if (ctx.Peek().Kind != TokenKind.RightParen)
+        {
+            ctx.Restore(start);
+            return false;
+        }
+        ctx.Consume();
+
+        result = new ParameterListNode { Parameters = parameters };
+        return true;
+    }
+
+    private void SkipTrivia(ref ParserContext ctx)
+    {
+        while (!ctx.IsAtEnd && (ctx.Peek().Kind == TokenKind.Whitespace || ctx.Peek().Kind == TokenKind.NewLine))
+        {
+            ctx.Consume();
+        }
+    }
+
+    private Token PeekNextNonTrivia(ref ParserContext ctx)
+    {
+        for (int i = 1; ; i++)
+        {
+            // Safety check against array bounds
+            if (ctx.Position + i >= ctx.Tokens.Length) return default;
+            
+            var tok = ctx.Peek(i);
+            if (tok.Kind is not (TokenKind.Whitespace or TokenKind.NewLine)) 
+                return tok;
+        }
+    }
+}
+public class ParameterListNode : SyntaxNode
+{
+    public List<FunctionParameter> Parameters { get; set; }
+}

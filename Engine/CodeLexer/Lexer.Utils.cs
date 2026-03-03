@@ -123,26 +123,33 @@ public static partial class Lexer
     {
         var pointer = start;
 
-        while (pointer < sourceSpan.Length)
+        // 1. Handle the initial character
+        if (pointer < sourceSpan.Length && sourceSpan[pointer] == '$')
         {
-            // consume the PHP variable sigil — it is part of the token
-            // but not a valid identifier character on its own
-            if (sourceSpan[pointer] == '$')
-            {
-                pointer++;
-                continue;
-            }
-
-            if (!char.IsLetterOrDigit(sourceSpan[pointer]) && sourceSpan[pointer] != '_')
-                return pointer;
-
             pointer++;
         }
 
-        // identifier ran to EOF
-        return -1;
-    }
+        // 2. An identifier must have at least one valid char after '$' 
+        // or start with a valid char. PHP variables like '$' alone are invalid.
+        if (pointer < sourceSpan.Length && !(char.IsLetter(sourceSpan[pointer]) || sourceSpan[pointer] == '_'))
+        {
+            return pointer; // Not a valid identifier start
+        }
 
+        // 3. Consume all valid trailing characters (Letters, Digits, Underscores)
+        while (pointer < sourceSpan.Length)
+        {
+            char c = sourceSpan[pointer];
+            if (!char.IsLetterOrDigit(c) && c != '_')
+            {
+                return pointer;
+            }
+            pointer++;
+        }
+
+        // If we reached the end of the span, return the length
+        return sourceSpan.Length;
+    }
     /// <summary>
     /// Returns the index of the first non-whitespace character after the given position.
     /// Consecutive spaces and tabs are collapsed into a single <see cref="TokenKind.Whitespace"/> token

@@ -1,6 +1,16 @@
-﻿namespace PHPIL.Engine.SyntaxTree;
+﻿using PHPIL.Engine.SyntaxTree;
 
-public partial class ElseNode : SyntaxNode
+namespace PHPIL.Engine.SyntaxTree
 {
-    public BlockNode? Body { get; set; }
+    public partial class ElseNode : SyntaxNode
+    {
+        public BlockNode? Body { get; set; }
+    }
+}
+namespace PHPIL.Engine.Visitors
+{
+    public partial interface IVisitor
+    {
+        void VisitElseNode(ElseNode node, in ReadOnlySpan<char> source);
+    }
 }

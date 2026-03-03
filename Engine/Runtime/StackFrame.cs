@@ -1,29 +1,40 @@
-﻿using PHPIL.Engine.Runtime.Types;
+﻿using System.Collections.Generic;
+using System.Reflection.Emit;
+using PHPIL.Engine.Runtime.Types;
 
 namespace PHPIL.Engine.Runtime;
 
 public class StackFrame
 {
-    private readonly Dictionary<string, int> _variables = new();
-    private int _nextSlot = 0;
+    private readonly Dictionary<string, LocalBuilder> _variables = new();
 
     public bool BreaksTraversal { get; set; } = false;
 
-    public int RegisterVariable(string name)
+    public int RegisterVariable(string name, ILGenerator il)
     {
         if (_variables.TryGetValue(name, out var existing))
-            return existing;
+            return existing.LocalIndex;
 
-        var slot = _nextSlot++;
-        _variables[name] = slot;
-        return slot;
+        // Declare the local as a PhpValue so the JIT is happy
+        var local = il.DeclareLocal(typeof(PhpValue));
+        _variables[name] = local;
+        return local.LocalIndex;
     }
 
-    public void RegisterVariable(string name, int slot)
-        => _variables[name] = slot;
+    // Overload for when you already have the index (from VariableDeclaration logic)
+    public void RegisterVariable(string name, LocalBuilder local)
+    {
+        _variables[name] = local;
+    }
 
     public bool TryGetVariableSlot(string name, out int slot)
-        => _variables.TryGetValue(name, out slot);
-
-    public IReadOnlyDictionary<string, int> Variables => _variables;
+    {
+        if (_variables.TryGetValue(name, out var local))
+        {
+            slot = local.LocalIndex;
+            return true;
+        }
+        slot = -1;
+        return false;
+    }
 }

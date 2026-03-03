@@ -1,12 +1,10 @@
 ﻿<?php
 
-require_once('Samples/second.php');
+$user = "John";
 
-
-while(true) {
-    while(true) {
-        break 2;
-    }
+function print_username(string $username): void
+{
+    print("Hello, " . $username);    
 }
 
-print("She's still working!");
+print_username($username);

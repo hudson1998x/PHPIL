@@ -16,7 +16,10 @@ public partial class AnonymousFunctionNode
         {
             if (needsComma) builder.Append(',');
             builder.Append('{');
-            builder.Append($"\"typeHint\": \"{param.TypeHint.TextValue(span)}\"");
+            if (param.TypeHint.HasValue)
+            {
+                builder.Append($"\"typeHint\": \"{param.TypeHint.Value.TextValue(span)}\"");
+            }
             builder.Append($",\"name\": \"{param.Name.TextValue(span)}\"");
             builder.Append('}');
             needsComma = true;

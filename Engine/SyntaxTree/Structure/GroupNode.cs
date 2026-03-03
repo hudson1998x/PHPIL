@@ -1,6 +1,16 @@
-﻿namespace PHPIL.Engine.SyntaxTree;
+﻿using PHPIL.Engine.SyntaxTree;
 
-public partial class GroupNode : ExpressionNode
+namespace PHPIL.Engine.SyntaxTree
 {
-    public ExpressionNode? Inner { get; init; }
+    public partial class GroupNode : ExpressionNode
+    {
+        public ExpressionNode? Inner { get; init; }
+    }
+}
+namespace PHPIL.Engine.Visitors
+{
+    public partial interface IVisitor
+    {
+        void VisitGroupNode(GroupNode node, in ReadOnlySpan<char> source);
+    }
 }
