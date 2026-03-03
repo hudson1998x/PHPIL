@@ -59,6 +59,29 @@ public class ILVisitor : IVisitor
         _il = _mainMethod.GetILGenerator();
         _context.PushFrame(new StackFrame());
     }
+    
+    public ILVisitor(RuntimeContext? context = null, ILGenerator? il = null, List<string>? log = null)
+    {
+        _context = context ?? new RuntimeContext();
+        _ilLog = log ?? new List<string>();
+
+        if (il != null)
+        {
+            _mainMethod = null!;
+            _il = il;
+        }
+        else
+        {
+            _mainMethod = new DynamicMethod(
+                "phpil_main",
+                typeof(object),
+                Type.EmptyTypes,
+                typeof(ILVisitor).Module);
+            _il = _mainMethod.GetILGenerator();
+        }
+
+        _context.PushFrame(new StackFrame());
+    }
 
     public object? Execute()
     {
@@ -386,6 +409,58 @@ public class ILVisitor : IVisitor
     }
     public void VisitWhileNode(WhileNode node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
     public void VisitForNode(For node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
+    public void VisitFunctionNode(FunctionNode node, in ReadOnlySpan<char> source)
+    {
+        string funcName = node.Name.TextValue(source);
+
+        var method = new DynamicMethod(
+            $"phpil_{funcName}",
+            typeof(PhpValue),
+            new[] { typeof(PhpValue[]) },
+            typeof(ILVisitor).Module);
+
+        var funcContext = new RuntimeContext();
+        var funcIl = method.GetILGenerator();
+        var funcVisitor = new ILVisitor(funcContext, funcIl, _ilLog);
+
+        // Unpack params from args array into locals
+        for (int i = 0; i < node.Params.Count; i++)
+        {
+            string paramName = node.Params[i].Name.TextValue(source);
+            int slot = funcContext.RegisterVariable(paramName, funcIl);
+            funcIl.Emit(OpCodes.Ldarg_0);
+            funcIl.Emit(OpCodes.Ldc_I4, i);
+            funcIl.Emit(OpCodes.Ldelem_Ref);
+            funcIl.Emit(OpCodes.Stloc, slot);
+            _ilLog.Add($"; param[{i}] {paramName} -> local_{slot}");
+        }
+
+        // Compile body
+        if (node.Body != null)
+            foreach (var stmt in node.Body.Statements)
+            {
+                stmt.Accept(funcVisitor, source);
+                funcIl.Emit(OpCodes.Pop);
+            }
+
+        // Default return PhpValue.Null
+        funcIl.Emit(OpCodes.Ldsfld, typeof(PhpValue).GetField("Null")!);
+        funcIl.Emit(OpCodes.Ret);
+
+        // Register
+        GlobalRuntimeContext.FunctionTable[funcName] = new PhpFunction
+        {
+            Name = funcName,
+            IsSystem = false,
+            IsCompiled = true,
+            Action = (PhpCallable)method.CreateDelegate(typeof(PhpCallable))
+        };
+
+        // Statement result for BlockNode to pop
+        _il.Emit(OpCodes.Ldsfld, typeof(PhpValue).GetField("Null")!);
+        _ilLog.Add($"ldsfld PhpValue.Null ; fn decl {funcName}");
+    }
+
     public void VisitFunctionParameter(FunctionParameter node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
     public void VisitAnonymousFunctionNode(AnonymousFunctionNode node, in ReadOnlySpan<char> source) => throw new NotImplementedException();
 }

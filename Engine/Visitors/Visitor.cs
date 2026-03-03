@@ -151,4 +151,9 @@ public class Visitor : IVisitor
     {
         foreach (var visitor in _visitors) visitor.VisitSyntaxNode(node, in source);
     }
+
+    public void VisitFunctionNode(FunctionNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitFunctionNode(node, in source);
+    }
 }
