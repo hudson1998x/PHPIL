@@ -34,16 +34,15 @@ public static class Runtime
         var ast = Parser.Parse(in tokens, in fileContent);
         
         var visitors = new Visitor(
-            new SemanticVisitor(),
-            new Compiler()
+            new SemanticVisitor()
         );
 
-        
-        
-        
         ast?.Accept(visitors, in fileContent);
         
         ast.ToJson(in fileContent, in span, builder);
         Console.WriteLine(builder.ToString());
+
+        var compiler = new Compiler();
+        ast.Accept(compiler, in fileContent);
     }
 }

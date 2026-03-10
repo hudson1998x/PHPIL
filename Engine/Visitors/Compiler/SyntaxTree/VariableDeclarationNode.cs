@@ -1,6 +1,8 @@
-﻿namespace PHPIL.Engine.SyntaxTree;
+﻿using System.Reflection.Emit;
+
+namespace PHPIL.Engine.SyntaxTree;
 
 public partial class VariableDeclaration
 {
-    public int LocalIndex { get; set; } = -1;
+    public LocalBuilder? Local { get; set; }
 }

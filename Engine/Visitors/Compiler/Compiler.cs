@@ -1,7 +1,10 @@
-﻿using PHPIL.Engine.Productions.Patterns;
+﻿using System.Reflection.Emit;
+using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.SyntaxTree.Structure.Loops;
+using PHPIL.Engine.Visitors.SemanticAnalysis;
 
 namespace PHPIL.Engine.Visitors;
 
@@ -59,7 +62,35 @@ public partial class Compiler : IVisitor
 
     public void VisitVariableDeclaration(VariableDeclaration node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        if (!node.IsUsed)
+        {
+            // no point wasting any emissions here.
+            return;
+        }
+
+        if (node.VariableValue is not null)
+        {
+            node.VariableValue.Accept(this, source);
+        }
+        else
+        {
+            Emit(OpCodes.Ldnull);
+        }
+
+        if (node.AnalysedType is not AnalysedType.Object)
+        {
+            // primitive :)
+            node.Local = DeclareLocal(TypeTable.GetPrimitive(node.AnalysedType));
+            Emit(OpCodes.Stloc, node.Local);
+
+            if (node.EmitValue)
+            {
+                Emit(OpCodes.Ldloc, node.Local);
+            }
+            return;
+        }
+
+        throw new NotImplementedException("Non primitive type invocation, this is not implemented yet, primitive values only.");
     }
 
     public void Visit(SyntaxNode node, in ReadOnlySpan<char> span)
@@ -69,7 +100,10 @@ public partial class Compiler : IVisitor
 
     public void VisitBlockNode(BlockNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        foreach (var stmt in node.Statements)
+        {
+            stmt.Accept(this, in source);
+        }
     }
 
     public void VisitFunctionCallNode(FunctionCallNode node, in ReadOnlySpan<char> source)
@@ -114,7 +148,27 @@ public partial class Compiler : IVisitor
 
     public void VisitLiteralNode(LiteralNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        switch (node.Token.Kind)
+        {
+            case TokenKind.TrueLiteral:
+                Emit(OpCodes.Ldc_I4_1);
+                break;
+            case TokenKind.FalseLiteral:
+                Emit(OpCodes.Ldc_I4_0);
+                break;
+            case TokenKind.StringLiteral:
+                Emit(OpCodes.Ldstr, node.Token.TextValue(in source));
+                break;
+            case TokenKind.NullLiteral:
+                Emit(OpCodes.Ldnull);
+                break;
+            case TokenKind.IntLiteral:
+                Emit(OpCodes.Ldc_I4_1, Int16.Parse(node.Token.TextValue(in source)));
+                break;
+            case TokenKind.FloatLiteral:
+                Emit(OpCodes.Ldc_R8, double.Parse(node.Token.TextValue(in source)));
+                break;
+        }
     }
 
     public void VisitUnaryOpNode(UnaryOpNode node, in ReadOnlySpan<char> source)
