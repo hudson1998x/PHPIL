@@ -39,9 +39,10 @@ public static class Runtime
 
         
         
-        ast.ToJson(in fileContent, in span, builder);
         
-        Console.WriteLine(builder.ToString());
         ast?.Accept(visitors, in fileContent);
+        
+        ast.ToJson(in fileContent, in span, builder);
+        Console.WriteLine(builder.ToString());
     }
 }

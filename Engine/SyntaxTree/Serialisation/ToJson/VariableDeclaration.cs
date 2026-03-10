@@ -9,8 +9,11 @@ public partial class VariableDeclaration
     {
         builder.Append('{');
         builder.Append("\"type\":\"VariableDeclaration\"");
+        builder.Append($",\"isUsed\": {IsUsed.ToString().ToLower()}");
         builder.Append(",\"name\":");
         VariableName.ToJson(in span, builder);
+        
+        builder.Append($",\"isCaptured\": {IsCaptured.ToString().ToLower()}");
 
         if (VariableValue != null)
         {

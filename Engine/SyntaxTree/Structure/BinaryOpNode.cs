@@ -1,6 +1,7 @@
 ﻿using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.Visitors;
+using PHPIL.Engine.Visitors.SemanticAnalysis;
 
 namespace PHPIL.Engine.SyntaxTree
 {

@@ -14,6 +14,11 @@ namespace PHPIL.Engine.Productions
 
             while (!ctx.IsAtEnd)
             {
+                if (ctx.Peek().Kind == TokenKind.PhpOpenTag)
+                {
+                    ctx.Consume();
+                    continue;
+                }
                 SkipTrivia(ref ctx);
                 if (ctx.IsAtEnd) break;
 
@@ -68,6 +73,25 @@ namespace PHPIL.Engine.Productions
                 case TokenKind.Foreach:
                     if (Grammar.ForeachExpression().TryMatch(ref ctx, out var foreachNode)) return foreachNode;
                     break;
+                
+                case TokenKind.Variable:
+                    if (Grammar.VariableAssignment().TryMatch(ref ctx, out var varNode)) return varNode;
+                    var variableToken = ctx.Peek();
+                    throw new Exception($"Unknown token ({variableToken.Kind}) {variableToken.TextValue(in ctx.Source)}");
+                    break;
+                
+                case TokenKind.FloatLiteral:
+                case TokenKind.IntLiteral:
+                case TokenKind.TrueLiteral:
+                case TokenKind.FalseLiteral:
+                case TokenKind.NullLiteral:
+                    var literalValue = ctx.Consume();
+                    var literalNode = new LiteralNode() { Token = literalValue, RangeStart = ctx.Position - 1, RangeEnd = ctx.Position };
+                    return literalNode;
+                
+                default:
+                    var token = ctx.Peek();
+                    throw new Exception($"Unknown token ({token.Kind}) {token.TextValue(in ctx.Source)}");
             }
 
             // The Climber (This is the only way into the expression tree)
@@ -133,7 +157,7 @@ namespace PHPIL.Engine.Productions
             }
 
             // 4. LITERALS
-            if (token.Kind == TokenKind.IntLiteral || token.Kind == TokenKind.StringLiteral)
+            if (token.Kind is TokenKind.IntLiteral or TokenKind.StringLiteral or TokenKind.FloatLiteral or TokenKind.TrueLiteral or TokenKind.FalseLiteral)
             {
                 if (Grammar.Literal().TryMatch(ref ctx, out var lit)) return lit;
             }

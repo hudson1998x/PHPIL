@@ -10,6 +10,7 @@ public partial class BinaryOpNode
         builder.Append('{');
         builder.Append($"\"type\": \"{GetType().Name}\"");
         builder.Append($",\"operator\": \"{Operator}\"");
+        builder.Append($",\"evaluatedType\": \"{AnalysedType}\"");
 
         builder.Append(",\"left\": ");
         if (Left is not null)
