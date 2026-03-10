@@ -13,9 +13,9 @@ namespace PHPIL.Engine.Visitors.SemanticAnalysis.Context
 
     public class VariableInfo
     {
-        public AnalysedType Type { get; set; } = AnalysedType.Mixed;
-        public ulong Flags { get; set; } = 0;
-        public VariableDeclaration Node { get; set; }
+        public AnalysedType Type { get; set; }
+        public ulong Flags { get; set; }
+        public VariableDeclaration? Node { get; set; }
 
         public bool IsCaptured
         {
@@ -39,7 +39,7 @@ namespace PHPIL.Engine.Visitors.SemanticAnalysis.Context
             }
         }
 
-        public VariableInfo(AnalysedType type, VariableDeclaration node)
+        public VariableInfo(AnalysedType type, VariableDeclaration? node)
         {
             Type = type;
             Node = node;

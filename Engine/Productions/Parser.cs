@@ -75,10 +75,20 @@ namespace PHPIL.Engine.Productions
                     break;
                 
                 case TokenKind.Variable:
-                    if (Grammar.VariableAssignment().TryMatch(ref ctx, out var varNode)) return varNode;
+                {
+                    // Try variable assignment first
+                    if (Grammar.VariableAssignment().TryMatch(ref ctx, out var varNode))
+                        return varNode;
+
+                    // If not assignment, try to parse as a simple variable/expression
+                    var exprClimber = new InnerExpressionPattern(0);
+                    if (exprClimber.TryMatch(ref ctx, out var exprNode))
+                        return exprNode;
+
+                    // Nothing worked
                     var variableToken = ctx.Peek();
                     throw new Exception($"Unknown token ({variableToken.Kind}) {variableToken.TextValue(in ctx.Source)}");
-                    break;
+                }
                 
                 case TokenKind.FloatLiteral:
                 case TokenKind.IntLiteral:
@@ -88,6 +98,25 @@ namespace PHPIL.Engine.Productions
                     var literalValue = ctx.Consume();
                     var literalNode = new LiteralNode() { Token = literalValue, RangeStart = ctx.Position - 1, RangeEnd = ctx.Position };
                     return literalNode;
+                
+                case TokenKind.Identifier:
+                    // Try parsing a function call first
+                    if (Grammar.FunctionCall().TryMatch(ref ctx, out var callNode)) 
+                        return callNode;
+
+                    // Otherwise, it’s a plain identifier (variable or constant)
+                    return new IdentifierNode { Token = ctx.Consume() };
+                
+                case TokenKind.LeftParen:
+                    if (Grammar.Expressions.Outer().TryMatch(ref ctx, out var expressionNode))
+                    {
+                        return expressionNode;
+                    }
+                    if (Grammar.Expressions.Inner().TryMatch(ref ctx, out var inner))
+                    {
+                        return inner;
+                    }
+                    throw new  Exception($"Unable to parse expression {ctx.Consume()}");
                 
                 default:
                     var token = ctx.Peek();
@@ -108,69 +137,49 @@ namespace PHPIL.Engine.Productions
 
             var token = ctx.Peek();
 
-            // 1. IDENTIFIERS & FUNCTION CALLS (e.g. print(...))
+            // 1. IDENTIFIERS & FUNCTION CALLS
             if (token.Kind == TokenKind.Identifier)
             {
-                // Try matching a function call first
+                // Always try to parse a function call first
                 if (Grammar.FunctionCall().TryMatch(ref ctx, out var callNode))
                     return callNode;
 
-                // Fallback to plain identifier if needed
+                // Otherwise, plain identifier
                 return new IdentifierNode { Token = ctx.Consume() };
             }
 
-            // 2. ARRAY LITERALS
-            if (token.Kind == TokenKind.LeftBracket ||
-                token.Kind == TokenKind.Array ||
-                (token.Kind == TokenKind.Identifier && token.TextValue(in ctx.Source) == "array"))
-            {
-                if (Grammar.ArrayLiteral().TryMatch(ref ctx, out var arrayNode))
-                    return arrayNode;
-            
-                throw new Exception($"Unable to parse array {token.TextValue(in ctx.Source)}");
-            }
-
-            // 3. VARIABLES (e.g. $nums or $fn())
+            // 2. VARIABLES (can also be function calls)
             if (token.Kind == TokenKind.Variable)
             {
-                var varToken = ctx.Consume();
-                SkipTrivia(ref ctx);
+                // Always try FunctionCallPattern first
+                if (Grammar.FunctionCall().TryMatch(ref ctx, out var varCall))
+                    return varCall;
 
-                // Variable function calls: $fn()
-                if (!ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.LeftParen)
-                {
-                    ctx.Consume();
-                    var args = new List<ExpressionNode>();
-                    while (!ctx.IsAtEnd && ctx.Peek().Kind != TokenKind.RightParen)
-                    {
-                        if (new InnerExpressionPattern(0).TryMatch(ref ctx, out var arg))
-                            args.Add(arg as ExpressionNode ?? throw new Exception("Invalid arg"));
-                    
-                        SkipTrivia(ref ctx);
-                        if (!ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.Comma) ctx.Consume();
-                    }
-                    if (!ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.RightParen) ctx.Consume();
-                    return new FunctionCallNode { Callee = new VariableNode { Token = varToken }, Args = args };
-                }
-
-                return new VariableNode { Token = varToken };
+                // Fallback to plain variable
+                return new VariableNode { Token = ctx.Consume() };
             }
 
-            // 4. LITERALS
-            if (token.Kind is TokenKind.IntLiteral or TokenKind.StringLiteral or TokenKind.FloatLiteral or TokenKind.TrueLiteral or TokenKind.FalseLiteral)
+            // 3. LITERALS
+            if (token.Kind is TokenKind.IntLiteral 
+                          or TokenKind.StringLiteral 
+                          or TokenKind.FloatLiteral 
+                          or TokenKind.TrueLiteral 
+                          or TokenKind.FalseLiteral)
             {
-                if (Grammar.Literal().TryMatch(ref ctx, out var lit)) return lit;
+                if (Grammar.Literal().TryMatch(ref ctx, out var lit))
+                    return lit;
             }
 
-            // 5. PREFIX OPERATORS
+            // 4. PREFIX OPERATORS
             if (token.Kind == TokenKind.Increment || token.Kind == TokenKind.Decrement)
             {
                 var op = ctx.Consume();
                 var operand = ParseAtom(ref ctx);
-                if (operand != null) return new PrefixExpressionNode(op, operand);
+                if (operand != null)
+                    return new PrefixExpressionNode(op, operand);
             }
 
-            // 6. PAREN GROUP
+            // 5. PAREN GROUP
             if (token.Kind == TokenKind.LeftParen)
             {
                 ctx.Consume();
@@ -178,6 +187,17 @@ namespace PHPIL.Engine.Productions
                 SkipTrivia(ref ctx);
                 if (!ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.RightParen) ctx.Consume();
                 return inner;
+            }
+
+            // 6. ARRAY LITERALS
+            if (token.Kind == TokenKind.LeftBracket ||
+                token.Kind == TokenKind.Array ||
+                (token.Kind == TokenKind.Identifier && token.TextValue(in ctx.Source) == "array"))
+            {
+                if (Grammar.ArrayLiteral().TryMatch(ref ctx, out var arrayNode))
+                    return arrayNode;
+
+                throw new Exception($"Unable to parse array {token.TextValue(in ctx.Source)}");
             }
 
             return null;

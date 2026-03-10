@@ -1,4 +1,5 @@
-﻿using PHPIL.Engine.Productions.Patterns;
+﻿using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.SyntaxTree.Structure.Loops;
@@ -85,6 +86,14 @@ public class SemanticVisitor : IVisitor
     {
         node.Left?.Accept(this, source);
         node.Right?.Accept(this, source);
+
+        node.AnalysedType = node.Operator switch
+        {
+            TokenKind.Concat => AnalysedType.String,
+            TokenKind.Multiply => node.Left!.AnalysedType is AnalysedType.Float || node.Right!.AnalysedType is AnalysedType.Float ? AnalysedType.Float : AnalysedType.Int,
+            
+            _ => AnalysedType.Mixed
+        };
     }
 
     public void Visit(SyntaxNode node, in ReadOnlySpan<char> span)
@@ -102,7 +111,8 @@ public class SemanticVisitor : IVisitor
 
     public void VisitFunctionCallNode(FunctionCallNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        foreach (var arg in node.Args)
+            arg.Accept(this, source);
     }
 
     public void VisitExpressionNode(ExpressionNode node, in ReadOnlySpan<char> source)
@@ -181,7 +191,7 @@ public class SemanticVisitor : IVisitor
 
     public void VisitIdentifierNode(IdentifierNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        // throw new Exception($"Unknown {node.Token.TextValue(in source)}");
     }
 
     public void VisitLiteralNode(LiteralNode node, in ReadOnlySpan<char> source)

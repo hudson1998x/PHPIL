@@ -1,5 +1,7 @@
-﻿using System.Reflection.Emit;
+﻿using System.Reflection;
+using System.Reflection.Emit;
 using System.Text;
+using PHPIL.Engine.Visitors.SemanticAnalysis;
 
 namespace PHPIL.Engine.Visitors;
 
@@ -93,6 +95,25 @@ public partial class Compiler
         GetIl().Emit(opCode, textValue);
     }
 
+    private void Emit(OpCode opCode, DynamicMethod nodeLocal)
+    {
+        GetIl().Emit(opCode, nodeLocal);
+    }
+
+    private void Emit(OpCode opCode, Delegate nodeLocal)
+    {
+        Emit(opCode, nodeLocal.Method);
+    }
+    
+    private void Emit(OpCode opCode, MethodInfo method)
+    {
+        if (_exposeIl)
+        {
+            _ilLog?.AppendLine($"::Emit(OpCode opCode, MethodInfo value) \"{opCode}\" {method.Name}");
+        }
+        GetIl().Emit(opCode, method);
+    }
+
     private LocalBuilder DeclareLocal(Type type)
     {
         if (_exposeIl)
@@ -101,5 +122,44 @@ public partial class Compiler
         }
 
         return GetIl().DeclareLocal(type);
+    }
+
+    private void Emit(OpCode opCode, Type nodeLocal)
+    {
+        if (_exposeIl)
+        {
+            _ilLog?.AppendLine($"::Emit(OpCode opCode, Type value) \"{opCode}\" {nodeLocal.Name}");
+        }
+        GetIl().Emit(opCode, nodeLocal);
+    }
+    
+    private void EmitCoercion(AnalysedType from, Type to)
+    {
+        if (to == typeof(string))
+        {
+            EmitStringCoercion(from);
+            return;
+        }
+
+        if (to == typeof(int))
+        {
+            // already int on stack, nothing to do
+            return;
+        }
+
+        if (to == typeof(double))
+        {
+            if (from == AnalysedType.Int)
+                Emit(OpCodes.Conv_R8);
+            return;
+        }
+
+        if (to == typeof(bool))
+        {
+            // already i4 on stack for bools, nothing to do
+            return;
+        }
+
+        throw new NotImplementedException($"Cannot coerce {from} to {to.Name} yet.");
     }
 }

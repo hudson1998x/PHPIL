@@ -41,6 +41,10 @@ public partial class BinaryOpNode
         if (left == AnalysedType.Int && right == AnalysedType.Int)
             return AnalysedType.Int;
         
+        
+        if (left == AnalysedType.String || right == AnalysedType.String)
+            return AnalysedType.String;
+        
         throw new Exception("Unable to convert " + left + " to " + right);
     }
 }

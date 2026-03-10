@@ -655,5 +655,6 @@ public enum TokenKind : byte
 
     BitwiseAnd,
     Pipe,
-    As
+    As,
+    Exponent
 }

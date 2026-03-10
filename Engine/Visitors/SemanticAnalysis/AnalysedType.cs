@@ -14,5 +14,7 @@ public enum AnalysedType : byte
     
     Array,
     
-    Object
+    Object,
+    
+    Void
 }
