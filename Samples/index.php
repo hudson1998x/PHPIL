@@ -2,13 +2,23 @@
 
 $i = 0;
 
-for($a = 0;$a < 5;$a++)
-{
-    print("For " . $a);
-}
 
-while($i < 5)
+while(true)
 {
+    if ($i > 9)
+    {
+        print("Waiting for break: " . $i);
+        $i++;
+        break;
+    }
+    if ($i > 3)
+    {
+        print("Continuing" . $i);
+        $i++;
+        continue;
+    }
     print("Whoo!" . $i);
+    
+   
     $i++;
 }

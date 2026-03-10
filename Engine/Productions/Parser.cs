@@ -120,6 +120,12 @@ namespace PHPIL.Engine.Productions
                 case TokenKind.ExpressionTerminator:
                     ctx.Peek();
                     return null;
+                case TokenKind.Break:
+                    if (Grammar.Break().TryMatch(ref ctx, out var breakNode)) return breakNode;
+                    break;
+                case TokenKind.Continue:
+                    if (Grammar.Continue().TryMatch(ref  ctx, out var continueNode)) return continueNode;
+                    break;
                 default:
                     var token = ctx.Peek();
                     throw new Exception($"Unknown token ({token.Kind}) {token.TextValue(in ctx.Source)}");

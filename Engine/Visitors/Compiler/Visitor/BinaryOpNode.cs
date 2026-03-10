@@ -34,12 +34,13 @@ public partial class Compiler
 
         switch (node.Operator)
         {
-            case TokenKind.Multiply: Emit(OpCodes.Mul);  break;
-            case TokenKind.Add:      Emit(OpCodes.Add);  break;
-            case TokenKind.Subtract: Emit(OpCodes.Sub);  break;
-            case TokenKind.DivideBy: Emit(OpCodes.Div);  break;
-            case TokenKind.Modulo:   Emit(OpCodes.Rem);  break;
-            case TokenKind.LessThan: Emit(OpCodes.Clt);  break;
+            case TokenKind.Multiply:    Emit(OpCodes.Mul); break;
+            case TokenKind.Add:         Emit(OpCodes.Add); break;
+            case TokenKind.Subtract:    Emit(OpCodes.Sub); break;
+            case TokenKind.DivideBy:    Emit(OpCodes.Div); break;
+            case TokenKind.Modulo:      Emit(OpCodes.Rem); break;
+            case TokenKind.LessThan:    Emit(OpCodes.Clt); break;
+            case TokenKind.GreaterThan: Emit(OpCodes.Cgt); break;
             default:
                 throw new NotImplementedException("Unknown operator: " + node.Operator);
         }

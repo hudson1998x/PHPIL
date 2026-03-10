@@ -12,9 +12,13 @@ public partial class Compiler
         {
             stmt.Accept(this, in source);
 
-            // Postfix expressions used as statements leave a value on the stack — pop it
             if (stmt is PostfixExpressionNode or PrefixExpressionNode)
                 Emit(OpCodes.Pop);
+
+            if (stmt is BreakNode breakNode)
+            {
+                return;
+            }
         }
     }
 }

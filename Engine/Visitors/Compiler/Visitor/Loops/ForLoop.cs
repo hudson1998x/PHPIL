@@ -8,7 +8,11 @@ public partial class Compiler
     public void VisitForNode(For node, in ReadOnlySpan<char> source)
     {
         var conditionLabel = DefineLabel();
+        var incrementLabel = DefineLabel();
         var exitLabel = DefineLabel();
+
+        _breakLabels.Push(exitLabel);
+        _continueLabels.Push(incrementLabel);
 
         if (node.Init != null)
             node.Init.Accept(this, source);
@@ -24,6 +28,8 @@ public partial class Compiler
         if (node.Body != null)
             node.Body.Accept(this, source);
 
+        MarkLabel(incrementLabel);
+
         if (node.Increment != null)
         {
             node.Increment.Accept(this, source);
@@ -33,5 +39,8 @@ public partial class Compiler
         Emit(OpCodes.Br, conditionLabel);
 
         MarkLabel(exitLabel);
+
+        _breakLabels.Pop();
+        _continueLabels.Pop();
     }
 }

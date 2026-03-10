@@ -10,10 +10,11 @@ public partial class Compiler
         var conditionLabel = DefineLabel();
         var exitLabel = DefineLabel();
 
-        // 1. Start Loop
+        _breakLabels.Push(exitLabel);
+        _continueLabels.Push(conditionLabel);
+
         MarkLabel(conditionLabel);
 
-        // 2. Condition
         if (node.Expression != null)
         {
             node.Expression.Accept(this, source);
@@ -22,14 +23,14 @@ public partial class Compiler
             Emit(OpCodes.Brfalse, exitLabel);
         }
 
-        // 3. Body
         if (node.Body != null)
             node.Body.Accept(this, source);
 
-        // 4. Loop
         Emit(OpCodes.Br, conditionLabel);
 
-        // 5. Exit
         MarkLabel(exitLabel);
+
+        _breakLabels.Pop();
+        _continueLabels.Pop();
     }
 }

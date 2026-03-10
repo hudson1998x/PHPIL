@@ -16,6 +16,11 @@ public class SemanticVisitor : IVisitor
     {
         throw new NotImplementedException();
     }
+    
+    public void VisitContinueNode(ContinueNode node, in ReadOnlySpan<char> source)
+    {
+        // nothing to analyse
+    }
 
     public void VisitPrefixExpressionNode(PrefixExpressionNode node, in ReadOnlySpan<char> source)
     {
@@ -131,7 +136,10 @@ public class SemanticVisitor : IVisitor
 
     public void VisitExpressionNode(ExpressionNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        foreach (var stmt in node.Statements)
+        {
+            stmt.Accept(this, in source);
+        }
     }
 
     public void VisitReturnNode(ReturnNode node, in ReadOnlySpan<char> source)
@@ -217,7 +225,7 @@ public class SemanticVisitor : IVisitor
 
     public void VisitBreakNode(BreakNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        
     }
 
     public void VisitElseNode(ElseNode node, in ReadOnlySpan<char> source)
@@ -232,7 +240,21 @@ public class SemanticVisitor : IVisitor
 
     public void VisitIfNode(IfNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        if (node.Expression != null)
+            node.Expression.Accept(this, source);
+
+        if (node.Body != null)
+        {
+            _currentContext.Push(new StackFrame { CanAscend = true });
+            node.Body.Accept(this, source);
+            _currentContext.Pop();
+        }
+
+        foreach (var elseIf in node.ElseIfs)
+            elseIf.Accept(this, source);
+
+        if (node.ElseNode != null)
+            node.ElseNode.Accept(this, source);
     }
 
     public void VisitTernaryNode(TernaryNode node, in ReadOnlySpan<char> source)

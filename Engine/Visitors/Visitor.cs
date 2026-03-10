@@ -21,6 +21,11 @@ public class Visitor : IVisitor
         _visitors = visitors;
     }
 
+    public void VisitContinueNode(ContinueNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitContinueNode(node, in source);
+    }
+
     /// <summary>
     /// The primary entry point for the composite visitor.
     /// Dispatches the node to every inner visitor via Accept (Double Dispatch).
