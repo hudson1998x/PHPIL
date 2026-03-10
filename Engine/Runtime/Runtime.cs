@@ -45,8 +45,8 @@ public static class Runtime
 
         ast?.Accept(visitors, in fileContent);
         
-        // ast?.ToJson(in fileContent, in span, builder);
-        // Console.WriteLine(builder.ToString());
+        ast?.ToJson(in fileContent, in span, builder);
+        Console.WriteLine(builder.ToString());
 
         var compiler = new Compiler();
         ast?.Accept(compiler, in fileContent);

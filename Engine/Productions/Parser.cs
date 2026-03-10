@@ -117,7 +117,9 @@ namespace PHPIL.Engine.Productions
                         return inner;
                     }
                     throw new  Exception($"Unable to parse expression {ctx.Consume()}");
-                
+                case TokenKind.ExpressionTerminator:
+                    ctx.Peek();
+                    return null;
                 default:
                     var token = ctx.Peek();
                     throw new Exception($"Unknown token ({token.Kind}) {token.TextValue(in ctx.Source)}");

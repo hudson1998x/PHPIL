@@ -10,9 +10,8 @@ namespace PHPIL.Engine.Visitors.SemanticAnalysis;
 
 public class SemanticVisitor : IVisitor
 {
-    
     private Stack<StackFrame> _currentContext = new();
-    
+
     public void VisitArrayLiteralNode(ArrayLiteralNode node, in ReadOnlySpan<char> source)
     {
         throw new NotImplementedException();
@@ -20,12 +19,12 @@ public class SemanticVisitor : IVisitor
 
     public void VisitPrefixExpressionNode(PrefixExpressionNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        node.Operand.Accept(this, source);
     }
 
     public void VisitPostfixExpressionNode(PostfixExpressionNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        node.Operand.Accept(this, source);
     }
 
     public void VisitForeachNode(ForeachNode node, in ReadOnlySpan<char> source)
@@ -55,30 +54,38 @@ public class SemanticVisitor : IVisitor
 
     public void VisitForNode(For node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        _currentContext.Push(new StackFrame { CanAscend = true });
+
+        if (node.Init != null)
+            node.Init.Accept(this, source);
+
+        if (node.Init != null)
+            node.Init.Accept(this, source);
+
+        if (node.Condition != null)
+            node.Condition.Accept(this, source);
+
+        if (node.Increment != null)
+            node.Increment.Accept(this, source);
+
+        if (node.Body != null)
+            node.Body.Accept(this, source);
+
+        _currentContext.Pop();
     }
 
-    /// <summary>
-    /// Handles variable declarations: sets the type, stores node reference, and resolves in the current frame
-    /// </summary>
     public void VisitVariableDeclaration(VariableDeclaration node, in ReadOnlySpan<char> source)
     {
-        // First visit the RHS expression
         if (node.VariableValue is not null)
         {
             node.VariableValue.Accept(this, source);
-            
-            // make sure this emits
+
             if (node.VariableValue is VariableDeclaration nested)
-            {
                 nested.EmitValue = true;
-            }
         }
 
-        // Determine the analysed type
         node.AnalysedType = node.VariableValue?.AnalysedType ?? AnalysedType.Mixed;
 
-        // Resolve or declare in current/nested frame
         ResolveOrDeclareVariable(node.VariableName.TextValue(in source), node.AnalysedType, node);
     }
 
@@ -89,9 +96,10 @@ public class SemanticVisitor : IVisitor
 
         node.AnalysedType = node.Operator switch
         {
-            TokenKind.Concat => AnalysedType.String,
-            TokenKind.Multiply => node.Left!.AnalysedType is AnalysedType.Float || node.Right!.AnalysedType is AnalysedType.Float ? AnalysedType.Float : AnalysedType.Int,
-            
+            TokenKind.Concat   => AnalysedType.String,
+            TokenKind.Multiply => node.Left!.AnalysedType is AnalysedType.Float || node.Right!.AnalysedType is AnalysedType.Float
+                                    ? AnalysedType.Float
+                                    : AnalysedType.Int,
             _ => AnalysedType.Mixed
         };
     }
@@ -104,9 +112,7 @@ public class SemanticVisitor : IVisitor
     public void VisitBlockNode(BlockNode node, in ReadOnlySpan<char> source)
     {
         foreach (var stmt in node.Statements)
-        {
             stmt.Accept(this, in source);
-        }
     }
 
     public void VisitFunctionCallNode(FunctionCallNode node, in ReadOnlySpan<char> source)
@@ -125,35 +131,24 @@ public class SemanticVisitor : IVisitor
         throw new NotImplementedException();
     }
 
-    /// <summary>
-    /// Handles reads of variables
-    /// </summary>
     public void VisitVariableNode(VariableNode node, in ReadOnlySpan<char> source)
     {
         var name = node.Token.TextValue(in source);
 
         VariableInfo? info = null;
 
-        // Try to resolve variable in the context stack
         foreach (var frame in _currentContext.Reverse())
         {
             if (frame.Variables.TryGetValue(name, out info))
             {
-                // Mark captured if in nested scope
                 if (_currentContext.Count > 1)
                     info.IsCaptured = true;
 
-                // Mark used
                 info.IsUsed = true;
-
-                // Update the VariableNode's evaluated type from resolved variable
                 node.AnalysedType = info.Type;
 
-                // Also propagate to AST node reference if needed
                 if (info.Node != null)
-                {
                     node.AnalysedType = info.Node.AnalysedType;
-                }
 
                 return;
             }
@@ -161,7 +156,6 @@ public class SemanticVisitor : IVisitor
             if (!frame.CanAscend) break;
         }
 
-        // Not found → declare in current frame with Mixed type
         if (_currentContext.Count > 0)
         {
             var currentFrame = _currentContext.Peek();
@@ -196,7 +190,16 @@ public class SemanticVisitor : IVisitor
 
     public void VisitLiteralNode(LiteralNode node, in ReadOnlySpan<char> source)
     {
-        
+        node.AnalysedType = node.Token.Kind switch
+        {
+            TokenKind.IntLiteral    => AnalysedType.Int,
+            TokenKind.FloatLiteral  => AnalysedType.Float,
+            TokenKind.StringLiteral => AnalysedType.String,
+            TokenKind.TrueLiteral   => AnalysedType.Boolean,
+            TokenKind.FalseLiteral  => AnalysedType.Boolean,
+            TokenKind.NullLiteral   => AnalysedType.Mixed,
+            _                       => AnalysedType.Mixed
+        };
     }
 
     public void VisitUnaryOpNode(UnaryOpNode node, in ReadOnlySpan<char> source)
@@ -228,28 +231,20 @@ public class SemanticVisitor : IVisitor
     {
         throw new NotImplementedException();
     }
-    
-    /// <summary>
-    /// Resolve a variable in the current context stack, declare if missing.
-    /// Updates type, AST node reference, and sets captured/used flags.
-    /// </summary>
+
     private void ResolveOrDeclareVariable(
         string name,
         AnalysedType type,
         VariableDeclaration? node = null,
         bool fromNestedScope = false,
-        bool markUsed = false
-    )
+        bool markUsed = false)
     {
         foreach (var frame in _currentContext.Reverse())
         {
             if (frame.Variables.TryGetValue(name, out var info))
             {
-                // Update type and node reference
                 info.Type = type;
                 if (node != null) info.Node ??= node;
-
-                // Flags
                 if (fromNestedScope) info.IsCaptured = true;
                 if (markUsed) info.IsUsed = true;
                 return;
@@ -258,18 +253,15 @@ public class SemanticVisitor : IVisitor
             if (!frame.CanAscend) break;
         }
 
-        // Not found → declare in current frame
         if (_currentContext.Count > 0)
         {
             var currentFrame = _currentContext.Peek();
             currentFrame.Variables[name] = new VariableInfo(type, node!);
-
             if (fromNestedScope) currentFrame.Variables[name].IsCaptured = true;
             if (markUsed) currentFrame.Variables[name].IsUsed = true;
         }
         else
         {
-            // fallback global frame
             var globalFrame = new StackFrame();
             globalFrame.Variables[name] = new VariableInfo(type, node!);
             if (fromNestedScope) globalFrame.Variables[name].IsCaptured = true;

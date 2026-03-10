@@ -28,13 +28,10 @@ public class ForExpressionPattern : Pattern
         ctx.Consume();
         SkipTrivia(ref ctx);
 
-        // --- Match initializer ---
+        // --- Match initializer (may be VariableDeclaration or expression) ---
         SyntaxNode? initNode = null;
         if (ctx.Peek().Kind != TokenKind.ExpressionTerminator)
-        {
-            if (!Grammar.Expressions.Outer().TryMatch(ref ctx, out initNode))
-                Grammar.Expressions.Inner().TryMatch(ref ctx, out initNode);
-        }
+            Grammar.Expressions.Inner().TryMatch(ref ctx, out initNode);
 
         // Match ';'
         if (ctx.Peek().Kind != TokenKind.ExpressionTerminator)
@@ -48,10 +45,7 @@ public class ForExpressionPattern : Pattern
         // --- Match condition ---
         SyntaxNode? conditionNode = null;
         if (ctx.Peek().Kind != TokenKind.ExpressionTerminator)
-        {
-            if (!Grammar.Expressions.Outer().TryMatch(ref ctx, out conditionNode))
-                Grammar.Expressions.Inner().TryMatch(ref ctx, out conditionNode);
-        }
+            Grammar.Expressions.Inner().TryMatch(ref ctx, out conditionNode);
 
         // Match ';'
         if (ctx.Peek().Kind != TokenKind.ExpressionTerminator)
@@ -65,10 +59,7 @@ public class ForExpressionPattern : Pattern
         // --- Match increment ---
         SyntaxNode? incrementNode = null;
         if (ctx.Peek().Kind != TokenKind.RightParen)
-        {
-            if (!Grammar.Expressions.Outer().TryMatch(ref ctx, out incrementNode))
-                Grammar.Expressions.Inner().TryMatch(ref ctx, out incrementNode);
-        }
+            Grammar.Expressions.Inner().TryMatch(ref ctx, out incrementNode);
 
         // Match ')'
         if (ctx.Peek().Kind != TokenKind.RightParen)
@@ -87,13 +78,16 @@ public class ForExpressionPattern : Pattern
             return false;
         }
 
-        // Build For node
+        // Consume any trailing expression terminators after the body
+        while (!ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.ExpressionTerminator)
+            ctx.Consume();
+
         result = new For
         {
-            Init        = initNode as ExpressionNode,
-            Condition   = conditionNode as ExpressionNode,
-            Increment   = incrementNode as ExpressionNode,
-            Body        = (BlockNode?)bodyNode
+            Init      = initNode,
+            Condition = conditionNode as ExpressionNode,
+            Increment = incrementNode as ExpressionNode,
+            Body      = (BlockNode?)bodyNode
         };
 
         return true;

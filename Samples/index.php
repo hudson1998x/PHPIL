@@ -1,6 +1,8 @@
 ﻿<?php
 
-$audience = "LinkedIn";
-$randomNumber = rand(1,225);
+for($i = 0;$i < 10;$i++)
+{
+    print("Iter: " . $i);    
+}
 
-print("Hello " . $audience . ", Check out the random number: " . $randomNumber . ", another one: " . rand(1,10));
+print("this still works");
