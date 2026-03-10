@@ -1,5 +1,4 @@
 ﻿using PHPIL.Engine.Runtime;
-using PHPIL.Engine.Runtime.Types;
 
 namespace PHPIL;
 
@@ -8,9 +7,5 @@ public static class Program
     public static void Main(string[] args)
     {
         Runtime.ExecuteFile("Samples/index.php");
-        GlobalRuntimeContext.Stdout.Flush();
-        var output = System.Text.Encoding.UTF8.GetString(GlobalRuntimeContext.StdoutStream.ToArray());
-        Console.WriteLine($"[stdout bytes: {GlobalRuntimeContext.StdoutStream.Length}]");
-        Console.OpenStandardOutput().Write(System.Text.Encoding.UTF8.GetBytes(output));
     }
 }

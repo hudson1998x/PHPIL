@@ -12,6 +12,7 @@ public partial class VariableNode
         builder.Append('{');
         builder.Append($"\"type\": \"{GetType().Name}\"");
         builder.Append($",\"name\": \"{escaped}\"");
+        builder.Append($",\"evaluatedType\": \"{AnalysedType}\"");
         builder.Append('}');
     }
 }

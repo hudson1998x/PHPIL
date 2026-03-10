@@ -2,6 +2,7 @@
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions;
 using PHPIL.Engine.Visitors;
+using PHPIL.Engine.Visitors.SemanticAnalysis;
 
 namespace PHPIL.Engine.Runtime;
 
@@ -33,12 +34,14 @@ public static class Runtime
         var ast = Parser.Parse(in tokens, in fileContent);
         
         var visitors = new Visitor(
-            
+            new SemanticVisitor()
         );
 
         
         
         ast.ToJson(in fileContent, in span, builder);
+        
+        Console.WriteLine(builder.ToString());
         ast?.Accept(visitors, in fileContent);
     }
 }

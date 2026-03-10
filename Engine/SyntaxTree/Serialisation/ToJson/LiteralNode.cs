@@ -12,6 +12,8 @@ public partial class LiteralNode
         builder.Append($",\"kind\": \"{Token.Kind}\"");
         builder.Append($",\"token\": ");
         Token.ToJson(in span, builder);
+        builder.Append($",\"hasTypeInformation\": \"{HasTypeEmission}\"");
+        builder.Append($",\"phpType\": \"{AnalysedType}\"");
         builder.Append('}');
     }
 }
