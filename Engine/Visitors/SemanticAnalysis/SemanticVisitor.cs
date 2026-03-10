@@ -63,7 +63,16 @@ public class SemanticVisitor : IVisitor
     public void VisitVariableDeclaration(VariableDeclaration node, in ReadOnlySpan<char> source)
     {
         // First visit the RHS expression
-        node.VariableValue?.Accept(this, source);
+        if (node.VariableValue is not null)
+        {
+            node.VariableValue.Accept(this, source);
+            
+            // make sure this emits
+            if (node.VariableValue is VariableDeclaration nested)
+            {
+                nested.EmitValue = true;
+            }
+        }
 
         // Determine the analysed type
         node.AnalysedType = node.VariableValue?.AnalysedType ?? AnalysedType.Mixed;

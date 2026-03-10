@@ -10,6 +10,7 @@ namespace PHPIL.Engine.Visitors;
 
 public partial class Compiler : IVisitor
 {
+    
     public void VisitBinaryOpNode(BinaryOpNode node, in ReadOnlySpan<char> source)
     {
         throw new NotImplementedException();
@@ -62,14 +63,18 @@ public partial class Compiler : IVisitor
 
     public void VisitVariableDeclaration(VariableDeclaration node, in ReadOnlySpan<char> source)
     {
-        if (!node.IsUsed)
-        {
-            // no point wasting any emissions here.
-            return;
-        }
+        // TODO: This causes stack balancing issues. 
+        //       need to find a good way of dealing
+        //       with this, might be a ref count
+        // if (!node.IsUsed)
+        // {
+        //     // no point wasting any emissions here.
+        //     return;
+        // }
 
         if (node.VariableValue is not null)
         {
+            Console.WriteLine($"[Var-value] {node.VariableName} {node.VariableValue.GetType().Name}");
             node.VariableValue.Accept(this, source);
         }
         else
@@ -81,6 +86,8 @@ public partial class Compiler : IVisitor
         {
             // primitive :)
             node.Local = DeclareLocal(TypeTable.GetPrimitive(node.AnalysedType));
+            _locals[node.VariableName.TextValue(in source)] = node.Local;
+            
             Emit(OpCodes.Stloc, node.Local);
 
             if (node.EmitValue)
@@ -123,7 +130,10 @@ public partial class Compiler : IVisitor
 
     public void VisitVariableNode(VariableNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        if (_locals.TryGetValue(node.Token.TextValue(in source), out var local))
+        {
+            Emit(OpCodes.Ldloc, local);
+        }
     }
 
     public void VisitArgumentListNode(ArgumentListNode node, in ReadOnlySpan<char> source)
@@ -168,6 +178,8 @@ public partial class Compiler : IVisitor
             case TokenKind.FloatLiteral:
                 Emit(OpCodes.Ldc_R8, double.Parse(node.Token.TextValue(in source)));
                 break;
+            default:
+                throw new NotImplementedException();
         }
     }
 

@@ -44,5 +44,7 @@ public static class Runtime
 
         var compiler = new Compiler();
         ast.Accept(compiler, in fileContent);
+
+        compiler.Execute();
     }
 }

@@ -12,5 +12,5 @@ public partial class VariableDeclaration
     
     public bool IsUsed { get; set; } = false;
 
-    public bool EmitValue => VariableValue is VariableDeclaration;
+    public bool EmitValue { get; set; } = false;
 }
