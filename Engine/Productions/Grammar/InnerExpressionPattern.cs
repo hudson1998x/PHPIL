@@ -24,6 +24,29 @@ namespace PHPIL.Engine.Productions.Patterns
             // 1. Parse the initial "nud" token (atom)
             var left = Parser.ParseAtom(ref ctx);
             if (left == null) return false;
+            
+            Parser.SkipTrivia(ref ctx);
+
+            if (left is VariableNode variable && !ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.AssignEquals)
+            {
+                // consume '='
+                var assignToken = ctx.Consume();
+
+                Parser.SkipTrivia(ref ctx);
+
+                // parse the value expression
+                if (!new InnerExpressionPattern(0).TryMatch(ref ctx, out var value))
+                    return false;
+
+                result = new VariableDeclaration
+                {
+                    VariableName = variable.Token,
+                    VariableValue = value as ExpressionNode
+                };
+
+                return true;
+            }
+
 
             // 2. Parse operators ("led" phase)
             while (!ctx.IsAtEnd)

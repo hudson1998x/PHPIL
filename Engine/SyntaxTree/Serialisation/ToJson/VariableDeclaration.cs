@@ -14,7 +14,8 @@ public partial class VariableDeclaration
 
         if (VariableValue != null)
         {
-            builder.Append(",\"expression\": ");
+            builder.Append($", \"phpType\": \"{VariableValue.AnalysedType}\"");
+            builder.Append(",\"value\": ");
             VariableValue.ToJson(in span, in tokens, builder);
         }
 

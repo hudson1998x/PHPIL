@@ -1,4 +1,5 @@
-﻿using PHPIL.Engine.Productions.Patterns;
+﻿using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.SyntaxTree.Structure.Loops;
@@ -54,32 +55,31 @@ public class SemanticVisitor : IVisitor
 
     public void VisitVariableDeclaration(VariableDeclaration node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        node.VariableValue?.Accept(this, source);
+        
+        node.AnalysedType = node.VariableValue?.AnalysedType ?? AnalysedType.Mixed;
     }
 
     public void VisitBinaryOpNode(BinaryOpNode node, in ReadOnlySpan<char> source)
     {
-        // visit the left. 
-        if (node.Left is not null)
+        node.Left?.Accept(this, source);
+        node.Right?.Accept(this, source);
+
+        if (node.Left is { } leftNode && node.Right is { } rightNode)
         {
-            node.Left.Accept(this, source);
-        }
-        // visit the right. 
-        if (node.Right is not null)
-        {
-            node.Right.Accept(this, source);
-        }
-        
-        // when a literal value is assigned.
-        if (node is { Left: VariableNode varNode, Right: LiteralNode literalNode })
-        {
-            varNode.AnalysedType = literalNode.AnalysedType;
+            node.AnalysedType = InferBinaryOpType(node.Operator,  leftNode.AnalysedType, rightNode.AnalysedType);
+            return;
         }
 
-        if (node is { Left: VariableNode leftVarNode, Right: VariableNode rightVarNode })
+        if (node.Left is { })
         {
-            // TODO: Resolve rightVarNode's type.
-            leftVarNode.AnalysedType = rightVarNode.AnalysedType;
+            node.AnalysedType = node.Left.AnalysedType;
+            return;
+        }
+
+        if (node.Right is { })
+        {
+            node.AnalysedType = node.Right.AnalysedType;
         }
     }
 
@@ -113,7 +113,7 @@ public class SemanticVisitor : IVisitor
 
     public void VisitVariableNode(VariableNode node, in ReadOnlySpan<char> source)
     {
-        
+        throw new NotImplementedException();
     }
 
     public void VisitArgumentListNode(ArgumentListNode node, in ReadOnlySpan<char> source)
@@ -138,7 +138,7 @@ public class SemanticVisitor : IVisitor
 
     public void VisitLiteralNode(LiteralNode node, in ReadOnlySpan<char> source)
     {
-        
+        Console.WriteLine("[LITERALNODE-CALLED]");
     }
 
     public void VisitUnaryOpNode(UnaryOpNode node, in ReadOnlySpan<char> source)
@@ -169,5 +169,20 @@ public class SemanticVisitor : IVisitor
     public void VisitTernaryNode(TernaryNode node, in ReadOnlySpan<char> source)
     {
         throw new NotImplementedException();
+    }
+
+
+    private static AnalysedType InferBinaryOpType(TokenKind op, AnalysedType left, AnalysedType right)
+    {
+        if (left == AnalysedType.Mixed || right == AnalysedType.Mixed)
+            return AnalysedType.Mixed;
+
+        if (left == AnalysedType.Float || right == AnalysedType.Float)
+            return AnalysedType.Float;
+
+        if (left == AnalysedType.Int && right == AnalysedType.Int)
+            return AnalysedType.Int;
+        
+        return AnalysedType.Mixed;
     }
 }

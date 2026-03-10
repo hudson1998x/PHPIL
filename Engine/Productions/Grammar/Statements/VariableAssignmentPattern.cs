@@ -54,11 +54,10 @@ namespace PHPIL.Engine.Productions.Patterns
             ctx.Consume(); // ';'
 
             // 5. Build assignment node
-            result = new BinaryOpNode
+            result = new VariableDeclaration
             {
-                Left = new VariableNode { Token = varToken },
-                Right = valueNode!,
-                Operator = TokenKind.AssignEquals,
+                VariableName = varToken,
+                VariableValue = valueNode,
                 RangeStart = start,
                 RangeEnd = ctx.Position
             };
