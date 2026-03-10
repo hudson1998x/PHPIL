@@ -26,7 +26,6 @@ public class ReturnPatternTests : BaseTest
     public void Parses_ReturnWithoutExpression()
     {
         var source = "return;";
-        var span = source.AsSpan();
 
         var node = ParseReturn(source);
         AssertEqual(null, node.Expression);
@@ -66,8 +65,8 @@ public class ReturnPatternTests : BaseTest
         AssertEqual(typeof(BinaryOpNode), node.Expression!.GetType());
         var bin = (BinaryOpNode)node.Expression;
 
-        AssertEqual("$a", ((VariableNode)bin.Left).Token.TextValue(in span));
-        AssertEqual("$b", ((VariableNode)bin.Right).Token.TextValue(in span));
+        AssertEqual("$a", ((VariableNode)bin.Left!).Token.TextValue(in span));
+        AssertEqual("$b", ((VariableNode)bin.Right!).Token.TextValue(in span));
     }
 
     [PHPILTest]

@@ -97,13 +97,13 @@ public class FunctionCallParserTests : BaseTest
         // First argument is a BinaryOpNode: $a + $b
         AssertEqual(typeof(BinaryOpNode), node.Args[0].GetType());
         var bin1 = (BinaryOpNode)node.Args[0];
-        AssertEqual("$a", ((VariableNode)bin1.Left).Token.TextValue(in span));
-        AssertEqual("$b", ((VariableNode)bin1.Right).Token.TextValue(in span));
+        AssertEqual("$a", ((VariableNode)bin1?.Left!)?.Token.TextValue(in span));
+        AssertEqual("$b", ((VariableNode)bin1?.Right!)?.Token.TextValue(in span));
 
         // Second argument is a BinaryOpNode: $c * 2
         AssertEqual(typeof(BinaryOpNode), node.Args[1].GetType());
         var bin2 = (BinaryOpNode)node.Args[1];
-        AssertEqual("$c", ((VariableNode)bin2.Left).Token.TextValue(in span));
-        AssertEqual("2", ((LiteralNode)bin2.Right).Token.TextValue(in span));
+        AssertEqual("$c", ((VariableNode)bin2?.Left!)?.Token.TextValue(in span));
+        AssertEqual("2", ((LiteralNode)bin2?.Right!)?.Token.TextValue(in span));
     }
 }

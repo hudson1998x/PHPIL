@@ -34,8 +34,8 @@ public class WhileExpressionParserTests : BaseTest
         // Condition
         AssertEqual(typeof(BinaryOpNode), node.Expression!.GetType());
         var cond = (BinaryOpNode)node.Expression;
-        AssertEqual("$i", ((VariableNode)cond.Left).Token.TextValue(in span));
-        AssertEqual("10", ((LiteralNode)cond.Right).Token.TextValue(in span));
+        AssertEqual("$i", ((VariableNode)cond.Left!).Token.TextValue(in span));
+        AssertEqual("10", ((LiteralNode)cond.Right!).Token.TextValue(in span));
 
         // Body
         AssertEqual(typeof(BlockNode), node.Body!.GetType());
@@ -92,15 +92,15 @@ public class WhileExpressionParserTests : BaseTest
         var cond = (BinaryOpNode)node.Expression;
 
         // Left side: $a + $b
-        AssertEqual(typeof(BinaryOpNode), cond.Left.GetType());
+        AssertEqual(typeof(BinaryOpNode), cond.Left!.GetType());
         var left = (BinaryOpNode)cond.Left;
-        AssertEqual("$a", ((VariableNode)left.Left).Token.TextValue(in span));
-        AssertEqual("$b", ((VariableNode)left.Right).Token.TextValue(in span));
+        AssertEqual("$a", ((VariableNode)left.Left!).Token.TextValue(in span));
+        AssertEqual("$b", ((VariableNode)left.Right!).Token.TextValue(in span));
 
         // Right side: $c * 2
-        AssertEqual(typeof(BinaryOpNode), cond.Right.GetType());
+        AssertEqual(typeof(BinaryOpNode), cond.Right!.GetType());
         var right = (BinaryOpNode)cond.Right;
-        AssertEqual("$c", ((VariableNode)right.Left).Token.TextValue(in span));
-        AssertEqual("2", ((LiteralNode)right.Right).Token.TextValue(in span));
+        AssertEqual("$c", ((VariableNode)right.Left!).Token.TextValue(in span));
+        AssertEqual("2", ((LiteralNode)right.Right!).Token.TextValue(in span));
     }
 }

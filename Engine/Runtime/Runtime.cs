@@ -21,20 +21,21 @@ public static class Runtime
         
         var builder = new StringBuilder();
 
-        builder.AppendLine("Tokens: [");
-        foreach (var token in tokens)
-        {
-            token.ToJson(in fileContent, builder);
-        }
-        builder.AppendLine("]");
-        
-        Console.WriteLine(builder.ToString());
+        // builder.AppendLine("Tokens: [");
+        // foreach (var token in tokens)
+        // {
+        //     token.ToJson(in fileContent, builder);
+        // }
+        // builder.AppendLine("]");
+        //
+        // Console.WriteLine(builder.ToString());
         
         var span = (ReadOnlySpan<Token>) tokens.AsSpan();
         var ast = Parser.Parse(in tokens, in fileContent);
         
         var visitors = new Visitor(
-            new SemanticVisitor()
+            new SemanticVisitor(),
+            new Compiler()
         );
 
         

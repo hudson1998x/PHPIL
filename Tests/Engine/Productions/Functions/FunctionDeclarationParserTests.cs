@@ -63,7 +63,7 @@ public class FunctionDeclarationParserTests : BaseTest
         AssertEqual(0, fn.Params.Count);
 
         AssertEqual(true, fn.ReturnType.HasValue);
-        AssertEqual("int", fn.ReturnType.Value.TextValue(in span));
+        AssertEqual("int", fn.ReturnType!.Value.TextValue(in span));
         AssertEqual(typeof(BlockNode), fn.Body!.GetType());
     }
 
@@ -80,7 +80,7 @@ public class FunctionDeclarationParserTests : BaseTest
         AssertEqual("$y", fn.Params[1].Name.TextValue(in span));
 
         AssertEqual(true, fn.ReturnType.HasValue);
-        AssertEqual("float", fn.ReturnType.Value.TextValue(in span));
+        AssertEqual("float", fn.ReturnType!.Value.TextValue(in span));
         AssertEqual(typeof(BlockNode), fn.Body!.GetType());
     }
 
@@ -95,7 +95,7 @@ public class FunctionDeclarationParserTests : BaseTest
         AssertEqual(0, fn.Params.Count);
 
         AssertEqual(true, fn.ReturnType.HasValue);
-        AssertEqual("string", fn.ReturnType.Value.TextValue(in span));
+        AssertEqual("string", fn.ReturnType!.Value.TextValue(in span));
         AssertEqual(typeof(BlockNode), fn.Body!.GetType());
     }
 }

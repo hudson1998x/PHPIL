@@ -27,7 +27,6 @@ public class ParameterListParserTests : BaseTest
     public void Parses_EmptyParameterList()
     {
         var source = "()";
-        var span = source.AsSpan();
 
         var list = ParseParameters(source);
         AssertEqual(0, list.Parameters.Count);
@@ -74,13 +73,13 @@ public class ParameterListParserTests : BaseTest
         var p0 = list.Parameters[0];
         AssertEqual("$a", p0.Name.TextValue(in span));
         AssertEqual(true, p0.TypeHint.HasValue);
-        AssertEqual("int", p0.TypeHint.Value.TextValue(in span));
+        AssertEqual("int", p0.TypeHint!.Value.TextValue(in span));
         AssertEqual(null, p0.DefaultValue);
 
         var p1 = list.Parameters[1];
         AssertEqual("$b", p1.Name.TextValue(in span));
         AssertEqual(true, p1.TypeHint.HasValue);
-        AssertEqual("string", p1.TypeHint.Value.TextValue(in span));
+        AssertEqual("string", p1.TypeHint!.Value.TextValue(in span));
         AssertEqual(null, p1.DefaultValue);
     }
 
@@ -116,13 +115,13 @@ public class ParameterListParserTests : BaseTest
         var p0 = list.Parameters[0];
         AssertEqual("$x", p0.Name.TextValue(in span));
         AssertEqual(true, p0.TypeHint.HasValue);
-        AssertEqual("float", p0.TypeHint.Value.TextValue(in span));
+        AssertEqual("float", p0.TypeHint!.Value.TextValue(in span));
         AssertEqual(typeof(LiteralNode), p0.DefaultValue!.GetType());
 
         var p1 = list.Parameters[1];
         AssertEqual("$y", p1.Name.TextValue(in span));
         AssertEqual(true, p1.TypeHint.HasValue);
-        AssertEqual("bool", p1.TypeHint.Value.TextValue(in span));
+        AssertEqual("bool", p1.TypeHint!.Value.TextValue(in span));
         AssertEqual(typeof(LiteralNode), p1.DefaultValue!.GetType());
     }
 

@@ -100,11 +100,11 @@ public class ArgumentListParserTests : BaseTest
         AssertEqual(2, node.Arguments.Count);
 
         var bin1 = (BinaryOpNode)node.Arguments[0];
-        AssertEqual("$a", ((VariableNode)bin1.Left).Token.TextValue(in span));
-        AssertEqual("$b", ((VariableNode)bin1.Right).Token.TextValue(in span));
+        AssertEqual("$a", ((VariableNode)bin1.Left!).Token.TextValue(in span));
+        AssertEqual("$b", ((VariableNode)bin1.Right!).Token.TextValue(in span));
 
         var bin2 = (BinaryOpNode)node.Arguments[1];
-        AssertEqual("$c", ((VariableNode)bin2.Left).Token.TextValue(in span));
-        AssertEqual("2", ((LiteralNode)bin2.Right).Token.TextValue(in span));
+        AssertEqual("$c", ((VariableNode)bin2.Left!).Token.TextValue(in span));
+        AssertEqual("2", ((LiteralNode)bin2.Right!).Token.TextValue(in span));
     }
 }

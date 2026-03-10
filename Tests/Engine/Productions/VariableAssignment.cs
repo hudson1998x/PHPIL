@@ -50,8 +50,8 @@ public class VariableAssignmentParserTests : BaseTest
         AssertEqual("$y", left.Token.TextValue(in span));
 
         var bin = (BinaryOpNode)node.Right!;
-        AssertEqual("$a", ((VariableNode)bin.Left).Token.TextValue(in span));
-        AssertEqual("$b", ((VariableNode)bin.Right).Token.TextValue(in span));
+        AssertEqual("$a", ((VariableNode)bin.Left!).Token.TextValue(in span));
+        AssertEqual("$b", ((VariableNode)bin.Right!).Token.TextValue(in span));
         AssertEqual(TokenKind.Add, bin.Operator);
     }
 
@@ -79,14 +79,14 @@ public class VariableAssignmentParserTests : BaseTest
         AssertEqual("$z", left.Token.TextValue(in span));
 
         var top = (BinaryOpNode)node.Right!;
-        var leftMul = (BinaryOpNode)top.Left;
-        AssertEqual("$x", ((VariableNode)leftMul.Left).Token.TextValue(in span));
-        AssertEqual("2", ((LiteralNode)leftMul.Right).Token.TextValue(in span));
+        var leftMul = (BinaryOpNode)top.Left!;
+        AssertEqual("$x", ((VariableNode)leftMul.Left!).Token.TextValue(in span));
+        AssertEqual("2", ((LiteralNode)leftMul.Right!).Token.TextValue(in span));
         AssertEqual(TokenKind.Multiply, leftMul.Operator);
 
-        var rightDiv = (BinaryOpNode)top.Right;
-        AssertEqual("$y", ((VariableNode)rightDiv.Left).Token.TextValue(in span));
-        AssertEqual("3", ((LiteralNode)rightDiv.Right).Token.TextValue(in span));
+        var rightDiv = (BinaryOpNode)top.Right!;
+        AssertEqual("$y", ((VariableNode)rightDiv.Left!).Token.TextValue(in span));
+        AssertEqual("3", ((LiteralNode)rightDiv.Right!).Token.TextValue(in span));
         AssertEqual(TokenKind.DivideBy, rightDiv.Operator);
 
         AssertEqual(TokenKind.Add, top.Operator);

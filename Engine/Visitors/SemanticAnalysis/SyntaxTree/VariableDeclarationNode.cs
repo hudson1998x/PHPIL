@@ -11,4 +11,6 @@ public partial class VariableDeclaration
     public bool IsCaptured { get; set; } = false;
     
     public bool IsUsed { get; set; } = false;
+
+    public bool EmitValue => VariableValue is VariableDeclaration;
 }

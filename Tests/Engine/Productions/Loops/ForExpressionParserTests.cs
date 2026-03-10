@@ -34,14 +34,14 @@ public class ForExpressionParserTests : BaseTest
         // Init
         AssertEqual(typeof(BinaryOpNode), node.Init!.GetType());
         var init = (BinaryOpNode)node.Init;
-        AssertEqual("$i", ((VariableNode)init.Left).Token.TextValue(in span));
-        AssertEqual("0", ((LiteralNode)init.Right).Token.TextValue(in span));
+        AssertEqual("$i", ((VariableNode)init.Left!).Token.TextValue(in span));
+        AssertEqual("0", ((LiteralNode)init.Right!).Token.TextValue(in span));
 
         // Condition
         AssertEqual(typeof(BinaryOpNode), node.Condition!.GetType());
         var cond = (BinaryOpNode)node.Condition;
-        AssertEqual("$i", ((VariableNode)cond.Left).Token.TextValue(in span));
-        AssertEqual("10", ((LiteralNode)cond.Right).Token.TextValue(in span));
+        AssertEqual("$i", ((VariableNode)cond.Left!).Token.TextValue(in span));
+        AssertEqual("10", ((LiteralNode)cond.Right!).Token.TextValue(in span));
 
         // Increment
         AssertEqual(typeof(PostfixExpressionNode), node.Increment!.GetType());
@@ -56,7 +56,6 @@ public class ForExpressionParserTests : BaseTest
     public void Parses_ForLoop_WithoutInit()
     {
         var source = "for(; $i < 5; $i++) {}";
-        var span = source.AsSpan();
 
         var node = ParseFor(source);
         AssertEqual(null, node.Init);
@@ -69,8 +68,6 @@ public class ForExpressionParserTests : BaseTest
     public void Parses_ForLoop_WithoutCondition()
     {
         var source = "for($i = 0;; $i++) {}";
-        var span = source.AsSpan();
-
         var node = ParseFor(source);
 
         AssertEqual(typeof(BinaryOpNode), node.Init!.GetType());
@@ -83,7 +80,6 @@ public class ForExpressionParserTests : BaseTest
     public void Parses_ForLoop_WithoutIncrement()
     {
         var source = "for($i = 0; $i < 5;) {}";
-        var span = source.AsSpan();
 
         var node = ParseFor(source);
 
@@ -111,7 +107,6 @@ public class ForExpressionParserTests : BaseTest
         for($i = 0; $i < 10; $i++) {
             for($j = 0; $j < 5; $j++) {}
         }";
-        var span = source.AsSpan();
 
         var outer = ParseFor(source);
 
@@ -122,7 +117,7 @@ public class ForExpressionParserTests : BaseTest
         AssertEqual(typeof(BlockNode), outer.Body!.GetType());
 
         // Inner loop
-        var innerStmt = (outer.Body! as BlockNode).Statements[0];
+        var innerStmt = (outer.Body! as BlockNode)!.Statements[0];
         AssertEqual(typeof(For), innerStmt.GetType());
 
         var inner = (For)innerStmt;
