@@ -1,8 +1,14 @@
 ﻿<?php
 
-for($i = 0;$i < 10;$i++)
+$i = 0;
+
+for($a = 0;$a < 5;$a++)
 {
-    print("Iter: " . $i);    
+    print("For " . $a);
 }
 
-print("this still works");
+while($i < 5)
+{
+    print("Whoo!" . $i);
+    $i++;
+}
