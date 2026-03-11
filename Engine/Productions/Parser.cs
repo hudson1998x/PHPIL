@@ -126,6 +126,11 @@ namespace PHPIL.Engine.Productions
                 case TokenKind.Continue:
                     if (Grammar.Continue().TryMatch(ref  ctx, out var continueNode)) return continueNode;
                     break;
+                
+                case TokenKind.LeftBrace:
+                    if (Grammar.Block().TryMatch(ref ctx, out var blockNode)) return blockNode;
+                    break;
+
                 default:
                     var token = ctx.Peek();
                     throw new Exception($"Unknown token ({token.Kind}) {token.TextValue(in ctx.Source)}");

@@ -67,7 +67,7 @@ public class BlockPatternTests : BaseTest
         var span = source.AsSpan();
         var block = ParseBlock(source);
 
-        AssertEqual(2, block.Statements.Count); 
+        AssertEqual(3, block.Statements.Count); 
     }
 
     [PHPILTest]

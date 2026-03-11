@@ -612,6 +612,12 @@ public static partial class Lexer
                         AddToken(TokenKind.ElseIf, position + 6);
                         continue;
                     }
+                    if (IsSequence(in sourceSpan, position, 'e', 'l', 's', 'e', ' ', 'i', 'f')
+                        && IsKeywordBoundary(in sourceSpan, position + 7))
+                    {
+                        AddToken(TokenKind.ElseIf, position + 7);
+                        continue;
+                    }
                     if (IsSequence(in sourceSpan, position, 'e', 'l', 's', 'e')
                         && IsKeywordBoundary(in sourceSpan, position + 4))
                     {
