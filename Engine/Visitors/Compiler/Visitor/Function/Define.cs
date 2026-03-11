@@ -8,6 +8,10 @@ public partial class Compiler
     public void VisitFunctionNode(FunctionNode node, in ReadOnlySpan<char> source)
     {
         var functionName = node.Name.TextValue(in source);
+        if (!string.IsNullOrEmpty(_currentNamespace))
+        {
+            functionName = _currentNamespace + "\\" + functionName;
+        }
         var parameterTypes = new Type[node.Params.Count];
         for (int i = 0; i < node.Params.Count; i++)
         {
@@ -25,6 +29,9 @@ public partial class Compiler
         }
 
         var innerCompiler = new Compiler(functionName, returnType, parameterTypes);
+        innerCompiler._currentNamespace = _currentNamespace;
+        foreach (var import in _useImports)
+            innerCompiler._useImports[import.Key] = import.Value;
 
         // Load parameters into locals
         for (int i = 0; i < node.Params.Count; i++)

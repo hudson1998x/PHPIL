@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
@@ -79,12 +79,12 @@ public class ArgumentListParserTests : BaseTest
         AssertEqual(2, node.Arguments.Count);
 
         var arg1 = (FunctionCallNode)node.Arguments[0];
-        AssertEqual("foo", ((IdentifierNode)arg1.Callee!).Token.TextValue(in span));
+        AssertEqual("foo", GetQualifiedName(arg1.Callee, in span));
         AssertEqual(1, arg1.Args.Count);
         AssertEqual("$a", ((VariableNode)arg1.Args[0]).Token.TextValue(in span));
 
         var arg2 = (FunctionCallNode)node.Arguments[1];
-        AssertEqual("bar", ((IdentifierNode)arg2.Callee!).Token.TextValue(in span));
+        AssertEqual("bar", GetQualifiedName(arg2.Callee, in span));
         AssertEqual(2, arg2.Args.Count);
         AssertEqual("$b", ((VariableNode)arg2.Args[0]).Token.TextValue(in span));
         AssertEqual("$c", ((VariableNode)arg2.Args[1]).Token.TextValue(in span));

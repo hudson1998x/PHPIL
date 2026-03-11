@@ -9,6 +9,8 @@ namespace PHPIL.Engine.Visitors.SemanticAnalysis;
 public partial class SemanticVisitor : IVisitor
 {
     private readonly Stack<StackFrame> _currentContext = [];
+    private string _currentNamespace = "";
+    private readonly Dictionary<string, string> _useImports = [];
     
     public void VisitForeachNode(ForeachNode node, in ReadOnlySpan<char> source)
     {

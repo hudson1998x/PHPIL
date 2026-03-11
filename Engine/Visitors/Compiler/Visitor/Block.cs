@@ -19,17 +19,13 @@ public partial class Compiler
                 {
                     shouldPop = false;
                 }
-                else if (expr is FunctionCallNode callNode && callNode.Callee is IdentifierNode idNode)
+                else if (expr is FunctionCallNode callNode)
                 {
-                    var func = FunctionTable.GetFunction(idNode.Token.TextValue(in source));
+                    var func = ResolveFunction(callNode.Callee, in source);
                     if (func != null)
                     {
                         var method = func.MethodInfo ?? func.Method?.Method;
-                        if (method != null && method.ReturnType == typeof(void))
-                        {
-                            shouldPop = false;
-                        }
-                        else if (func.ReturnType == typeof(void))
+                        if ((method != null && method.ReturnType == typeof(void)) || func.ReturnType == typeof(void))
                         {
                             shouldPop = false;
                         }

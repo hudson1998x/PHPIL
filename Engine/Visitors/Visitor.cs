@@ -188,4 +188,19 @@ public class Visitor : IVisitor
     {
         foreach (var visitor in _visitors) visitor.VisitObjectAccessNode(node, in source);
     }
-}
+
+    public void VisitNamespaceNode(NamespaceNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitNamespaceNode(node, in source);
+    }
+
+    public void VisitQualifiedNameNode(QualifiedNameNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitQualifiedNameNode(node, in source);
+    }
+
+    public void VisitUseNode(UseNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitUseNode(node, in source);
+    }
+}

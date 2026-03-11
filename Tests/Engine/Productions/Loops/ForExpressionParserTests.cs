@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
@@ -139,7 +139,7 @@ public class ForExpressionParserTests : BaseTest
 
         AssertEqual(typeof(FunctionCallNode), node.Increment!.GetType());
         var incrCall = (FunctionCallNode)node.Increment!;
-        AssertEqual("next", ((IdentifierNode)incrCall.Callee!).Token.TextValue(in span));
+        AssertEqual("next", GetQualifiedName(incrCall.Callee, in span));
         AssertEqual(1, incrCall.Args.Count);
         AssertEqual("$i", ((VariableNode)incrCall.Args[0]).Token.TextValue(in span));
     }

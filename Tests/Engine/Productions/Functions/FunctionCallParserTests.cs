@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.Productions;
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions.Patterns;
@@ -31,8 +31,8 @@ public class FunctionCallParserTests : BaseTest
 
         var node = ParseFunctionCall(source);
 
-        AssertEqual("print", ((IdentifierNode)node.Callee!).Token.TextValue(in span));
-        AssertEqual(0, node.Args.Count);
+        AssertEqual("print", GetQualifiedName(node.Callee, in span));
+                AssertEqual(0, node.Args.Count);
     }
 
     [PHPILTest]
@@ -43,8 +43,8 @@ public class FunctionCallParserTests : BaseTest
 
         var node = ParseFunctionCall(source);
 
-        AssertEqual("print", ((IdentifierNode)node.Callee!).Token.TextValue(in span));
-        AssertEqual(1, node.Args.Count);
+        AssertEqual("print", GetQualifiedName(node.Callee, in span));
+                AssertEqual(1, node.Args.Count);
         AssertEqual("$x", ((VariableNode)node.Args[0]).Token.TextValue(in span));
     }
 
@@ -56,7 +56,7 @@ public class FunctionCallParserTests : BaseTest
 
         var node = ParseFunctionCall(source);
 
-        AssertEqual("sum", ((IdentifierNode)node.Callee!).Token.TextValue(in span));
+        AssertEqual("sum", GetQualifiedName(node.Callee, in span));
         AssertEqual(3, node.Args.Count);
 
         AssertEqual("$a", ((VariableNode)node.Args[0]).Token.TextValue(in span));
@@ -72,11 +72,11 @@ public class FunctionCallParserTests : BaseTest
 
         var node = ParseFunctionCall(source);
 
-        AssertEqual("foo", ((IdentifierNode)node.Callee!).Token.TextValue(in span));
+        AssertEqual("foo", GetQualifiedName(node.Callee, in span));
         AssertEqual(2, node.Args.Count);
 
         var nested = (FunctionCallNode)node.Args[0];
-        AssertEqual("bar", ((IdentifierNode)nested.Callee!).Token.TextValue(in span));
+        AssertEqual("bar", GetQualifiedName(nested.Callee, in span));
         AssertEqual(1, nested.Args.Count);
         AssertEqual("$x", ((VariableNode)nested.Args[0]).Token.TextValue(in span));
 
@@ -91,7 +91,7 @@ public class FunctionCallParserTests : BaseTest
 
         var node = ParseFunctionCall(source);
 
-        AssertEqual("max", ((IdentifierNode)node.Callee!).Token.TextValue(in span));
+        AssertEqual("max", GetQualifiedName(node.Callee, in span));
         AssertEqual(2, node.Args.Count);
 
         // First argument is a BinaryOpNode: $a + $b

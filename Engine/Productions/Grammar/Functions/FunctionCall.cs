@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
@@ -10,14 +10,13 @@ public class FunctionCallPattern : Pattern
     {
         int start = ctx.Save();
 
-        // 1. Must start with an Identifier
-        if (ctx.IsAtEnd || ctx.Peek().Kind != TokenKind.Identifier) 
-        { 
-            result = null; 
-            return false; 
+        // 1. Must start with a Qualified Name (or just a single identifier)
+        if (!Grammar.QualifiedName().TryMatch(ref ctx, out var calleeNode))
+        {
+            result = null;
+            return false;
         }
-        var identifierToken = ctx.Consume();
-        var callee = new IdentifierNode { Token = identifierToken };
+        var callee = calleeNode as ExpressionNode;
 
         Parser.SkipTrivia(ref ctx);
 

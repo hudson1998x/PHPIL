@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
@@ -90,7 +90,7 @@ public class ForeachExpressionParserTests : BaseTest
 
         if (node.Iterable is FunctionCallNode call)
         {
-            AssertEqual("getItems", ((IdentifierNode)call.Callee!).Token.TextValue(in span));
+            AssertEqual("getItems", GetQualifiedName(call.Callee, in span));
         }
         else
         {

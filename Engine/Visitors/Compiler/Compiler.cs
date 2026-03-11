@@ -9,6 +9,9 @@ namespace PHPIL.Engine.Visitors;
 
 public partial class Compiler : IVisitor
 {
+    private string _currentNamespace = "";
+    private readonly Dictionary<string, string> _useImports = [];
+
     public void Visit(SyntaxNode node, in ReadOnlySpan<char> span)
     {
         throw new NotImplementedException();

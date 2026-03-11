@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
@@ -80,7 +80,7 @@ public class BlockPatternTests : BaseTest
         AssertEqual(1, block.Statements.Count);
         var call = block.Statements[0] as FunctionCallNode;
         AssertNotNull(call);
-        AssertEqual("print", ((IdentifierNode)call!.Callee!).Token.TextValue(in span));
+        AssertEqual("print", GetQualifiedName(call!.Callee, in span));
         AssertEqual(1, call.Args.Count);
         AssertEqual("$x", ((VariableNode)call.Args[0]).Token.TextValue(in span));
     }

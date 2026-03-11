@@ -54,6 +54,14 @@ namespace PHPIL.Engine.Productions
                     if (Grammar.AnonymousFunction().TryMatch(ref ctx, out var an)) return an;
                     break;
             
+                case TokenKind.Namespace:
+                    if (Grammar.NamespaceDeclaration().TryMatch(ref ctx, out var ns)) return ns;
+                    break;
+
+                case TokenKind.Use:
+                    if (Grammar.Use().TryMatch(ref ctx, out var use)) return use;
+                    break;
+            
                 case TokenKind.Return:
                     if (Grammar.Return().TryMatch(ref ctx, out var returnNode)) return returnNode;
                     break;
@@ -135,14 +143,15 @@ namespace PHPIL.Engine.Productions
             var token = ctx.Peek();
 
             // 1. IDENTIFIERS & FUNCTION CALLS
-            if (token.Kind == TokenKind.Identifier)
+            if (token.Kind == TokenKind.Identifier || token.Kind == TokenKind.NamespaceSeparator)
             {
                 // Always try to parse a function call first
                 if (Grammar.FunctionCall().TryMatch(ref ctx, out var callNode))
                     return callNode;
 
-                // Otherwise, plain identifier
-                return new IdentifierNode { Token = ctx.Consume() };
+                // Otherwise, try a qualified name (or plain identifier)
+                if (Grammar.QualifiedName().TryMatch(ref ctx, out var qname))
+                    return qname;
             }
 
             // 2. VARIABLES (can also be function calls)

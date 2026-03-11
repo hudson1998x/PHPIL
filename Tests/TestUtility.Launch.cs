@@ -41,6 +41,7 @@ public partial class TestUtility
         utility.Run<ArrayExecutionTests>();
         utility.Run<OperatorExecutionTests>();
         utility.Run<StringInterpolationTests>();
+        utility.Run<NamespaceTests>();
         
         utility.PrintSummary();
 

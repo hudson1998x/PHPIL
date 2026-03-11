@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
@@ -90,11 +90,11 @@ public class ReturnPatternTests : BaseTest
         var node = ParseReturn(source);
         AssertEqual(typeof(FunctionCallNode), node.Expression!.GetType());
 
-        var callNode = (FunctionCallNode)node.Expression;
-        AssertEqual("foo", ((IdentifierNode)callNode.Callee!).Token.TextValue(in span));
-        AssertEqual(2, callNode.Args.Count);
+        var call = (FunctionCallNode)node.Expression!;
+        AssertEqual("foo", GetQualifiedName(call.Callee, in span));
+        AssertEqual(2, call.Args.Count);
 
-        AssertEqual("$x", ((VariableNode)callNode.Args[0]).Token.TextValue(in span));
-        AssertEqual("$y", ((VariableNode)callNode.Args[1]).Token.TextValue(in span));
+        AssertEqual("$x", ((VariableNode)call.Args[0]).Token.TextValue(in span));
+        AssertEqual("$y", ((VariableNode)call.Args[1]).Token.TextValue(in span));
     }
 }

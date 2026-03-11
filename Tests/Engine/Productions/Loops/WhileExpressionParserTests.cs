@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
@@ -51,7 +51,7 @@ public class WhileExpressionParserTests : BaseTest
 
         AssertEqual(typeof(FunctionCallNode), node.Expression!.GetType());
         var call = (FunctionCallNode)node.Expression;
-        AssertEqual("hasNext", ((IdentifierNode)call.Callee!).Token.TextValue(in span));
+        AssertEqual("hasNext", GetQualifiedName(call.Callee, in span));
         AssertEqual(1, call.Args.Count);
         AssertEqual("$iter", ((VariableNode)call.Args[0]).Token.TextValue(in span));
     }

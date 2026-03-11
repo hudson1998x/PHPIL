@@ -1,4 +1,5 @@
-﻿using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.SyntaxTree;
 
 namespace PHPIL.Tests;
 
@@ -33,5 +34,21 @@ public abstract class BaseTest
     {
         if (obj is null)
             throw new Exception(message ?? "Expected object to be not null, but it was null.");
+    }
+
+    protected string GetQualifiedName(ExpressionNode? node, in ReadOnlySpan<char> span)
+    {
+        if (node is PHPIL.Engine.SyntaxTree.Structure.QualifiedNameNode qn)
+        {
+            var parts = new List<string>();
+            foreach (var part in qn.Parts)
+                parts.Add(part.TextValue(in span));
+            return string.Join("\\", parts);
+        }
+        if (node is IdentifierNode id)
+        {
+            return id.Token.TextValue(in span);
+        }
+        return "";
     }
 }

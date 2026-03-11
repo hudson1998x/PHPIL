@@ -1,5 +1,6 @@
 using System.Reflection.Emit;
 using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.Visitors.SemanticAnalysis;
 
 namespace PHPIL.Engine.Visitors;
@@ -8,12 +9,29 @@ public partial class Compiler
 {
     public void VisitFunctionCallNode(FunctionCallNode node, in ReadOnlySpan<char> source)
     {
-        if (node.Callee is not IdentifierNode identifierNode)
-            throw new NotImplementedException("Dynamic function calling isn't supported yet");
+        var phpFunc = ResolveFunction(node.Callee, in source);
+        if (phpFunc == null)
+        {
+            string name = "unknown";
+            if (node.Callee is IdentifierNode id)
+            {
+                name = id.Token.TextValue(in source);
+            }
+            else if (node.Callee is QualifiedNameNode qn)
+            {
+                var parts = new List<string>();
+                foreach (var p in qn.Parts)
+                    parts.Add(p.TextValue(in source));
+                name = string.Join("\\", parts);
+            }
+            throw new NotImplementedException($"The function {name} is not implemented yet");
+        }
 
-        var phpFunc = FunctionTable.GetFunction(identifierNode.Token.TextValue(in source));
-        if (phpFunc is null)
-            throw new NotImplementedException($"The function {identifierNode.Token.TextValue(in source)} is not implemented yet");
+        ResolveParamsAndCall(node, phpFunc, source);
+    }
+
+    private void ResolveParamsAndCall(FunctionCallNode node, PhpFunction phpFunc, ReadOnlySpan<char> source)
+    {
 
         for (int i = 0; i < node.Args.Count; i++)
         {
