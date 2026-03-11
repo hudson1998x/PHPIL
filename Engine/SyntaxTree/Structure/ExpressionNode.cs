@@ -1,4 +1,5 @@
-﻿using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.Visitors;
 
 namespace PHPIL.Engine.SyntaxTree
@@ -18,5 +19,6 @@ namespace PHPIL.Engine.Visitors
     public partial interface IVisitor
     {
         void VisitExpressionNode(ExpressionNode node, in ReadOnlySpan<char> source);
+        void VisitArrayAccessNode(ArrayAccessNode node, in ReadOnlySpan<char> source);
     }
 }

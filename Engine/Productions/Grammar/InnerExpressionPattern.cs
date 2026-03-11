@@ -1,10 +1,9 @@
-﻿using System;
-using System.Text;
+﻿using System.Text;
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.Visitors;
-using System.Collections.Generic;
+using PHPIL.Engine.SyntaxTree.Structure;
 
 namespace PHPIL.Engine.Productions.Patterns
 {
@@ -27,7 +26,7 @@ namespace PHPIL.Engine.Productions.Patterns
             
             Parser.SkipTrivia(ref ctx);
 
-            if (left is VariableNode variable && !ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.AssignEquals)
+            if (_minPrecedence < 10 && (left is VariableNode || left is ArrayAccessNode) && !ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.AssignEquals)
             {
                 // consume '='
                 var assignToken = ctx.Consume();
@@ -40,7 +39,7 @@ namespace PHPIL.Engine.Productions.Patterns
 
                 result = new BinaryOpNode
                 {
-                    Left = variable,
+                    Left = left as ExpressionNode,
                     Right = value as ExpressionNode,
                     Operator = TokenKind.AssignEquals
                 };
@@ -64,7 +63,31 @@ namespace PHPIL.Engine.Productions.Patterns
 
                 if (isPostfix)
                 {
-                    left = new PostfixExpressionNode(left, token);
+                    if (token.Kind == TokenKind.LeftBracket)
+                    {
+                        Parser.SkipTrivia(ref ctx);
+                        ExpressionNode? key = null;
+                        
+                        if (ctx.Peek().Kind != TokenKind.RightBracket)
+                        {
+                            if (new InnerExpressionPattern(0).TryMatch(ref ctx, out var keyNode))
+                            {
+                                key = keyNode as ExpressionNode;
+                            }
+                        }
+                        
+                        Parser.SkipTrivia(ref ctx);
+                        if (!ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.RightBracket)
+                        {
+                            ctx.Consume();
+                        }
+                        
+                        left = new ArrayAccessNode { Array = left as ExpressionNode, Key = key };
+                    }
+                    else
+                    {
+                        left = new PostfixExpressionNode(left, token);
+                    }
                 }
                 else
                 {
@@ -99,6 +122,7 @@ namespace PHPIL.Engine.Productions.Patterns
             TokenKind.LessThan or TokenKind.GreaterThan or TokenKind.ShallowEquality or TokenKind.DeepEquality => (35, false, false),
             TokenKind.Add or TokenKind.Subtract or TokenKind.Concat => (40, false, false),
             TokenKind.Multiply or TokenKind.DivideBy => (50, false, false),
+            TokenKind.LeftBracket => (90, true, false),
             TokenKind.Increment or TokenKind.Decrement => (100, true, false),
             _ => (0, false, false)
         };

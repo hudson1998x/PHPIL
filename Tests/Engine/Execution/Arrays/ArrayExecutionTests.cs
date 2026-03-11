@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.Runtime;
+using PHPIL.Engine.Runtime;
 
 namespace PHPIL.Tests.Engine.Execution.Arrays;
 
@@ -51,5 +51,19 @@ public class ArrayExecutionTests : BaseTest
     {
         var result = Execute("<?php $arr = [1, [2, 3], 4]; print('ok');");
         AssertEqual("ok", result);
+    }
+
+    [PHPILTest]
+    public void Array_Accessor_GetSet()
+    {
+        var result = Execute("<?php $arr = []; $arr['test'] = 'success'; print($arr['test']);");
+        AssertEqual("success", result);
+    }
+
+    [PHPILTest]
+    public void Array_Accessor_Append()
+    {
+        var result = Execute("<?php $arr = []; $arr[] = 1; print($arr[0]);");
+        AssertEqual("1", result);
     }
 }

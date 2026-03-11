@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
 
@@ -12,9 +12,13 @@ namespace PHPIL.Engine.Productions.Patterns
             int start = ctx.Save();
             Parser.SkipTrivia(ref ctx);
 
-            // 1. Match variable
+            // 1. Match LHS (variable or array access)
             if (ctx.IsAtEnd || ctx.Peek().Kind != TokenKind.Variable) return false;
-            var varToken = ctx.Consume();
+            if (!new InnerExpressionPattern(20).TryMatch(ref ctx, out var lhsNode))
+            {
+                ctx.Restore(start);
+                return false;
+            }
             Parser.SkipTrivia(ref ctx);
 
             // 2. Match '='
@@ -60,7 +64,7 @@ namespace PHPIL.Engine.Productions.Patterns
             // 5. Build assignment node
             result = new BinaryOpNode
             {
-                Left = new VariableNode { Token = varToken },
+                Left = lhsNode as ExpressionNode,
                 Right = valueNode,
                 Operator = TokenKind.AssignEquals,
                 RangeStart = start,

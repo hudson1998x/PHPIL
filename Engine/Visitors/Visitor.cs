@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.Productions.Patterns;
+using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.SyntaxTree.Structure.Loops;
@@ -52,6 +52,11 @@ public class Visitor : IVisitor
     public void VisitArrayLiteralNode(ArrayLiteralNode node, in ReadOnlySpan<char> source)
     {
         foreach (var visitor in _visitors) visitor.VisitArrayLiteralNode(node, in source);
+    }
+
+    public void VisitArrayAccessNode(ArrayAccessNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitArrayAccessNode(node, in source);
     }
 
     public void VisitPrefixExpressionNode(PrefixExpressionNode node, in ReadOnlySpan<char> source)
