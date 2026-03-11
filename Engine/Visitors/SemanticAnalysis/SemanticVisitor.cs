@@ -69,5 +69,15 @@ public partial class SemanticVisitor : IVisitor
         node.Else?.Accept(this, source);
     }
 
-    
-}
+    public void VisitInterpolatedStringNode(InterpolatedStringNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var part in node.Parts)
+            part.Accept(this, source);
+    }
+
+    public void VisitObjectAccessNode(ObjectAccessNode node, in ReadOnlySpan<char> source)
+    {
+        node.Object?.Accept(this, source);
+        node.Property?.Accept(this, source);
+    }
+}

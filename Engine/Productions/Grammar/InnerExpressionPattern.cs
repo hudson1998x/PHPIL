@@ -78,10 +78,21 @@ namespace PHPIL.Engine.Productions.Patterns
                         if (!ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.RightBracket) ctx.Consume();
                         left = new ArrayAccessNode { Array = left as ExpressionNode, Key = key };
                     }
+                    else if (token.Kind == TokenKind.ObjectOperator)
+                    {
+                        Parser.SkipTrivia(ref ctx);
+                        if (ctx.Peek().Kind == TokenKind.Identifier)
+                        {
+                            var prop = new IdentifierNode { Token = ctx.Consume() };
+                            left = new ObjectAccessNode { Object = left as ExpressionNode, Property = prop };
+                        }
+                        else throw new Exception("Expected identifier after '->'");
+                    }
                     else
                     {
                         left = new PostfixExpressionNode(left, token);
                     }
+
                 }
                 else if (token.Kind == TokenKind.QuestionMark)
                 {
@@ -133,9 +144,11 @@ namespace PHPIL.Engine.Productions.Patterns
             TokenKind.Power => (60, false, true),
             TokenKind.LeftBracket => (90, true, false),
             TokenKind.Increment or TokenKind.Decrement => (100, true, false),
+            TokenKind.ObjectOperator => (110, true, false),
             _ => (0, false, false)
         };
     }
+
 
     /// <summary>
     /// Prefix expression (+$a, ++$x)

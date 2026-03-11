@@ -40,7 +40,9 @@ public partial class TestUtility
         utility.Run<FunctionCallsExecutionTests>();
         utility.Run<ArrayExecutionTests>();
         utility.Run<OperatorExecutionTests>();
+        utility.Run<StringInterpolationTests>();
         
         utility.PrintSummary();
+
     }
 }

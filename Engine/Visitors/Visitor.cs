@@ -178,4 +178,14 @@ public class Visitor : IVisitor
     {
         foreach (var visitor in _visitors) visitor.VisitForeachNode(node, in source);
     }
-}
+
+    public void VisitInterpolatedStringNode(InterpolatedStringNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitInterpolatedStringNode(node, in source);
+    }
+
+    public void VisitObjectAccessNode(ObjectAccessNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitObjectAccessNode(node, in source);
+    }
+}
