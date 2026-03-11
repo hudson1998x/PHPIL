@@ -47,62 +47,60 @@ namespace PHPIL.Engine.Visitors.SemanticAnalysis.Context
         }
     }
 
-    namespace PHPIL.Engine.Visitors.SemanticAnalysis.Context
+    
+    public class StackFrame
     {
-        public class StackFrame
+        public Dictionary<string, VariableInfo> Variables = new();
+        public bool CanAscend { get; set; } = false;
+
+        /// <summary>
+        /// Declare a new variable or update an existing one.
+        /// Ensures the AST node reference is stored and type is updated.
+        /// </summary>
+        public void DeclareOrUpdate(string name, AnalysedType type, VariableDeclaration node)
         {
-            public Dictionary<string, VariableInfo> Variables = new();
-            public bool CanAscend { get; set; } = false;
-
-            /// <summary>
-            /// Declare a new variable or update an existing one.
-            /// Ensures the AST node reference is stored and type is updated.
-            /// </summary>
-            public void DeclareOrUpdate(string name, AnalysedType type, VariableDeclaration node)
+            if (Variables.TryGetValue(name, out var info))
             {
-                if (Variables.TryGetValue(name, out var info))
-                {
-                    info.Type = type;
-                    info.Node ??= node; // keep existing node if already set
-                }
-                else
-                {
-                    Variables[name] = new VariableInfo(type, node);
-                }
+                info.Type = type;
+                info.Node ??= node; // keep existing node if already set
             }
-
-            /// <summary>
-            /// Mark a variable as read/used. Updates both the flag and the AST node.
-            /// </summary>
-            public void MarkUsed(string name)
+            else
             {
-                if (Variables.TryGetValue(name, out var info))
-                {
-                    info.IsUsed = true;
-                }
-                // optional: could throw or ignore if variable not declared yet
+                Variables[name] = new VariableInfo(type, node);
             }
+        }
 
-            /// <summary>
-            /// Mark a variable as captured by a nested scope. Updates flag and AST node.
-            /// </summary>
-            public void MarkCaptured(string name)
+        /// <summary>
+        /// Mark a variable as read/used. Updates both the flag and the AST node.
+        /// </summary>
+        public void MarkUsed(string name)
+        {
+            if (Variables.TryGetValue(name, out var info))
             {
-                if (Variables.TryGetValue(name, out var info))
-                {
-                    info.IsCaptured = true;
-                }
-                // optional: could throw or ignore if variable not declared yet
+                info.IsUsed = true;
             }
+            // optional: could throw or ignore if variable not declared yet
+        }
 
-            /// <summary>
-            /// Lookup variable info by name in this frame.
-            /// </summary>
-            public VariableInfo? ResolveVariable(string name)
+        /// <summary>
+        /// Mark a variable as captured by a nested scope. Updates flag and AST node.
+        /// </summary>
+        public void MarkCaptured(string name)
+        {
+            if (Variables.TryGetValue(name, out var info))
             {
-                Variables.TryGetValue(name, out var info);
-                return info;
+                info.IsCaptured = true;
             }
+            // optional: could throw or ignore if variable not declared yet
+        }
+
+        /// <summary>
+        /// Lookup variable info by name in this frame.
+        /// </summary>
+        public VariableInfo? ResolveVariable(string name)
+        {
+            Variables.TryGetValue(name, out var info);
+            return info;
         }
     }
 }
