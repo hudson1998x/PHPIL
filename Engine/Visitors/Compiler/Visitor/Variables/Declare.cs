@@ -6,43 +6,58 @@ namespace PHPIL.Engine.Visitors;
 
 public partial class Compiler
 {
-    public void VisitVariableDeclaration(VariableDeclaration node, in ReadOnlySpan<char> source)
-    {
-        if (node.VariableValue is VariableDeclaration childDeclaration)
-        {
-            childDeclaration.Accept(this, source);
+	public void VisitVariableDeclaration(VariableDeclaration node, in ReadOnlySpan<char> source)
+	{
+		var varName = node.VariableName.TextValue(in source);
 
-            node.Local = DeclareLocal(typeof(object));
-            _locals[node.VariableName.TextValue(in source)] = node.Local;
+		if (node.VariableValue is VariableDeclaration childDeclaration)
+		{
+			childDeclaration.Accept(this, source);
 
-            Emit(OpCodes.Ldloc, childDeclaration.Local!);
-            Emit(OpCodes.Stloc, node.Local);
+			if (!_locals.TryGetValue(varName, out var existingLocal))
+			{
+				node.Local = DeclareLocal(typeof(object));
+				_locals[varName] = node.Local;
+			}
+			else
+			{
+				node.Local = existingLocal;
+			}
 
-            if (node.EmitValue)
-                Emit(OpCodes.Ldloc, node.Local);
+			if (node.EmitValue)
+				Emit(OpCodes.Dup);
 
-            return;
-        }
+			Emit(OpCodes.Stloc, node.Local);
 
-        if (node.VariableValue is not null)
-            node.VariableValue.Accept(this, source);
-        else
-            Emit(OpCodes.Ldnull);
+			return;
+		}
 
-        node.Local = DeclareLocal(typeof(object));
-        _locals[node.VariableName.TextValue(in source)] = node.Local;
+		if (node.VariableValue is not null)
+			node.VariableValue.Accept(this, source);
+		else
+			Emit(OpCodes.Ldnull);
 
-        switch (node.AnalysedType)
-        {
-            case AnalysedType.Int:     Emit(OpCodes.Box, typeof(int));    break;
-            case AnalysedType.Float:   Emit(OpCodes.Box, typeof(double)); break;
-            case AnalysedType.Boolean: Emit(OpCodes.Box, typeof(bool));   break;
-            case AnalysedType.Mixed:   Emit(OpCodes.Box, typeof(int));    break;
-        }
+		if (!_locals.TryGetValue(varName, out var existingLocal2))
+		{
+			node.Local = DeclareLocal(typeof(object));
+			_locals[varName] = node.Local;
+		}
+		else
+		{
+			node.Local = existingLocal2;
+		}
 
-        Emit(OpCodes.Stloc, node.Local);
+		switch (node.AnalysedType)
+		{
+			case AnalysedType.Int:     Emit(OpCodes.Box, typeof(int));    break;
+			case AnalysedType.Float:   Emit(OpCodes.Box, typeof(double)); break;
+			case AnalysedType.Boolean: Emit(OpCodes.Box, typeof(bool));   break;
+			case AnalysedType.Mixed:   Emit(OpCodes.Box, typeof(int));    break;
+		}
 
-        if (node.EmitValue)
-            Emit(OpCodes.Ldloc, node.Local);
-    }
+		if (node.EmitValue)
+			Emit(OpCodes.Dup);
+
+		Emit(OpCodes.Stloc, node.Local);
+	}
 }

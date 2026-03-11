@@ -1,4 +1,5 @@
 ﻿using PHPIL.Tests.Engine;
+using PHPIL.Tests.Engine.Execution.Functions;
 
 namespace PHPIL.Tests;
 
@@ -30,6 +31,10 @@ public partial class TestUtility
         utility.Run<BlockPatternTests>();
         
         // ===========================
+        // =============================
+        // Now for the execution tests
+        // =============================
+        utility.Run<FunctionCallsExecutionTests>();
         
         utility.PrintSummary();
     }

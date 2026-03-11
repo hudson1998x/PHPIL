@@ -12,7 +12,9 @@ public partial class SemanticVisitor
             node.VariableValue.Accept(this, source);
 
             if (node.VariableValue is VariableDeclaration nested)
+            {
                 nested.EmitValue = true;
+            }
         }
 
         node.AnalysedType = node.VariableValue?.AnalysedType ?? AnalysedType.Mixed;

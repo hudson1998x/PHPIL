@@ -45,12 +45,28 @@ public static class Runtime
 
         ast?.Accept(visitors, in fileContent);
         
-        ast?.ToJson(in fileContent, in span, builder);
-        Console.WriteLine(builder.ToString());
+        // ast?.ToJson(in fileContent, in span, builder);
+        // Console.WriteLine(builder.ToString());
 
         var compiler = new Compiler();
         ast?.Accept(compiler, in fileContent);
 
         compiler.Execute();
+    }
+
+    public static string GetExecutionResult()
+    {
+        SdkInitializer.StdoutStream.Flush();
+
+        var stream = SdkInitializer.StdoutMemory;
+        stream.Position = 0;
+
+        using var reader = new StreamReader(stream, Encoding.UTF8, false, leaveOpen: true);
+        var result = reader.ReadToEnd();
+
+        stream.Position = 0;
+        stream.SetLength(0);
+
+        return result;
     }
 }

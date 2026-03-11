@@ -4,6 +4,9 @@ namespace PHPIL.Engine.Runtime.Sdk;
 
 public static partial class SdkInitializer
 {
+    internal static readonly MemoryStream StdoutMemory = new();
+    internal static readonly StreamWriter StdoutStream = new(StdoutMemory);
+    
     static void Print()
     {
         FunctionTable.RegisterFunction(new PhpFunction()
@@ -17,5 +20,5 @@ public static partial class SdkInitializer
 
 public static partial class Streams
 {
-    public static void Print(string value) => Console.WriteLine(value);
+    public static void Print(string value) => SdkInitializer.StdoutStream.Write(value);
 }
