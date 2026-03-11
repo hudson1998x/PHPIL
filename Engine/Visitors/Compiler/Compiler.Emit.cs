@@ -86,12 +86,19 @@ public partial class Compiler
         Emit(opCode, nodeLocal.Method);
     }
 
-    private void Emit(OpCode opCode, MethodInfo method)
-    {
-        if (_exposeIl)
-            _ilLog?.AppendLine($"::Emit(OpCode opCode, MethodInfo value) \"{opCode}\" {method.Name}");
-        GetIl().Emit(opCode, method);
-    }
+	private void Emit(OpCode opCode, MethodInfo method)
+	{
+		if (_exposeIl)
+			_ilLog?.AppendLine($"::Emit(OpCode opCode, MethodInfo value) \"{opCode}\" {method.Name}");
+		GetIl().Emit(opCode, method);
+	}
+
+	private void Emit(OpCode opCode, ConstructorInfo constructor)
+	{
+		if (_exposeIl)
+			_ilLog?.AppendLine($"::Emit(OpCode opCode, ConstructorInfo value) \"{opCode}\" {constructor.DeclaringType?.Name}");
+		GetIl().Emit(opCode, constructor);
+	}
 
     private LocalBuilder DeclareLocal(Type type)
     {

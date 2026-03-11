@@ -1,4 +1,5 @@
 ﻿using System.Reflection.Emit;
+using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
@@ -57,12 +58,7 @@ public partial class Compiler : IVisitor
     {
         throw new NotImplementedException();
     }
-
-    public void VisitArrayLiteralNode(ArrayLiteralNode node, in ReadOnlySpan<char> source)
-    {
-        throw new NotImplementedException();
-    }
-
+    
     public void VisitForeachNode(ForeachNode node, in ReadOnlySpan<char> source)
     {
         throw new NotImplementedException();

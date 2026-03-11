@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Visitors;
+using PHPIL.Engine.Visitors.SemanticAnalysis;
 
 namespace PHPIL.Engine.SyntaxTree.Structure;
 
@@ -33,6 +34,10 @@ public class ArrayItemNode : SyntaxNode
 public class ArrayLiteralNode : ExpressionNode
 {
     public List<ArrayItemNode> Items { get; set; } = new List<ArrayItemNode>();
+    
+    public bool IsAssociative { get; set; }
+
+    public override AnalysedType AnalysedType { get; set; }
 
     public override void Accept(IVisitor visitor, in ReadOnlySpan<char> source)
         => visitor.VisitArrayLiteralNode(this, source);

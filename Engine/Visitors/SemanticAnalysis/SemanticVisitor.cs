@@ -9,12 +9,7 @@ namespace PHPIL.Engine.Visitors.SemanticAnalysis;
 public partial class SemanticVisitor : IVisitor
 {
     private readonly Stack<StackFrame> _currentContext = [];
-
-    public void VisitArrayLiteralNode(ArrayLiteralNode node, in ReadOnlySpan<char> source)
-    {
-        throw new NotImplementedException();
-    }
-
+    
     public void VisitForeachNode(ForeachNode node, in ReadOnlySpan<char> source)
     {
         throw new NotImplementedException();
@@ -42,7 +37,8 @@ public partial class SemanticVisitor : IVisitor
 
     public void VisitArgumentListNode(ArgumentListNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        foreach (var arg in node.Arguments)
+            arg.Accept(this, source);
     }
 
     public void VisitElseIfNode(ElseIfNode node, in ReadOnlySpan<char> source)
