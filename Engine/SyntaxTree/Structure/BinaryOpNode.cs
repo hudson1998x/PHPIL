@@ -12,6 +12,8 @@ namespace PHPIL.Engine.SyntaxTree
 
         public TokenKind Operator;
 
+        public bool NeedsValue;
+
         public override void Accept(IVisitor visitor, in ReadOnlySpan<char> source)
         {
             visitor.VisitBinaryOpNode(this, source);

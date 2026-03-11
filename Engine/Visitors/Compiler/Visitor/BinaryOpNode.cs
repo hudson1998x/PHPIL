@@ -18,7 +18,13 @@ public partial class Compiler
 			node.Left?.Accept(this, source);
 			EmitStringCoercion(node.Left!.AnalysedType, isVariable: node.Left is VariableNode);
 
+			if (node.Right is BinaryOpNode { Operator: TokenKind.AssignEquals } innerAssign)
+			{
+				innerAssign.NeedsValue = true;
+			}
+
 			node.Right?.Accept(this, source);
+
 			EmitStringCoercion(node.Right!.AnalysedType, isVariable: node.Right is VariableNode);
 
 			Emit(OpCodes.Call, StringConcat);
@@ -30,10 +36,12 @@ public partial class Compiler
 			if (node.Left is VariableNode varNode)
 			{
 				var varName = varNode.Token.TextValue(in source);
+				bool isNestedAssignment = node.Right is BinaryOpNode { Operator: TokenKind.AssignEquals };
 
 				node.Right?.Accept(this, source);
 
-				Emit(OpCodes.Dup);
+				if (isNestedAssignment)
+					Emit(OpCodes.Dup);
 
 				if (node.Right?.AnalysedType is AnalysedType.Int)
 					Emit(OpCodes.Box, typeof(int));
@@ -49,6 +57,9 @@ public partial class Compiler
 				}
 
 				Emit(OpCodes.Stloc, local);
+
+				if (isNestedAssignment || node.NeedsValue)
+					Emit(OpCodes.Ldloc, local);
 			}
 			return;
 		}
