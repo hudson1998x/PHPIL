@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.Visitors;
+using PHPIL.Engine.Visitors;
 
 namespace PHPIL.Engine.Runtime.Sdk;
 
@@ -11,6 +11,7 @@ public static partial class SdkInitializer
             Name = "rand",
             ParameterTypes = [typeof(int), typeof(int)],
             ReturnType = typeof(int),
+            MethodInfo = typeof(Seeds).GetMethod(nameof(Seeds.Rand)),
             Method = Seeds.Rand
         });
     }

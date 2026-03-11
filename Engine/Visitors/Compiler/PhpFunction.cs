@@ -1,4 +1,4 @@
-﻿namespace PHPIL.Engine.Visitors;
+namespace PHPIL.Engine.Visitors;
 
 public class PhpFunction
 {
@@ -7,6 +7,7 @@ public class PhpFunction
     public Type? ReturnType;
 
     public Delegate? Method;
+    public System.Reflection.MethodInfo? MethodInfo;
 
     public Type[]? ParameterTypes;
 }

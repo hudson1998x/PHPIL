@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Reflection.Emit;
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.SyntaxTree;
@@ -65,11 +65,11 @@ public partial class Compiler
 		}
 
 		node.Left?.Accept(this, source);
-		if (node.Left is VariableNode)
+		if (node.Left is VariableNode || node.Left is FunctionCallNode)
 			Emit(OpCodes.Unbox_Any, typeof(int));
 
 		node.Right?.Accept(this, source);
-		if (node.Right is VariableNode)
+		if (node.Right is VariableNode || node.Right is FunctionCallNode)
 			Emit(OpCodes.Unbox_Any, typeof(int));
 
 		switch (node.Operator)
@@ -81,6 +81,7 @@ public partial class Compiler
 			case TokenKind.Modulo:      Emit(OpCodes.Rem); break;
 			case TokenKind.LessThan:    Emit(OpCodes.Clt); break;
 			case TokenKind.GreaterThan: Emit(OpCodes.Cgt); break;
+			case TokenKind.ShallowEquality: Emit(OpCodes.Ceq); break;
 			default:
 				throw new NotImplementedException("Unknown operator: " + node.Operator);
 		}

@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Visitors.SemanticAnalysis;
 
 namespace PHPIL.Engine.SyntaxTree;
@@ -32,19 +32,15 @@ public partial class BinaryOpNode
 
     private static AnalysedType InferBinaryOpType(TokenKind op, AnalysedType left, AnalysedType right)
     {
-        if (left == AnalysedType.Mixed || right == AnalysedType.Mixed)
-            return AnalysedType.Mixed;
+        if (op == TokenKind.AssignEquals) return right;
+        if (op == TokenKind.Concat) return AnalysedType.String;
+        
+        if (op is TokenKind.LessThan or TokenKind.GreaterThan or TokenKind.ShallowEquality)
+            return AnalysedType.Boolean;
 
         if (left == AnalysedType.Float || right == AnalysedType.Float)
             return AnalysedType.Float;
 
-        if (left == AnalysedType.Int && right == AnalysedType.Int)
-            return AnalysedType.Int;
-        
-        
-        if (left == AnalysedType.String || right == AnalysedType.String)
-            return AnalysedType.String;
-        
-        throw new Exception("Unable to convert " + left + " to " + right);
+        return AnalysedType.Int;
     }
 }

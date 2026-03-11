@@ -1,24 +1,8 @@
 ﻿<?php
 
-$i = 0;
-
-
-while(true)
+function do_something(string $username): string
 {
-    if ($i > 9)
-    {
-        print("Waiting for break: " . $i);
-        $i++;
-        break;
-    }
-    if ($i > 3)
-    {
-        print("Continuing" . $i);
-        $i++;
-        continue;
-    }
-    print("Whoo!" . $i);
-    
-   
-    $i++;
+    print("Hello, " . $username);    
 }
+
+do_something("John");

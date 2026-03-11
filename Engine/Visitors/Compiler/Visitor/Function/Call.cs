@@ -1,4 +1,4 @@
-﻿using System.Reflection.Emit;
+using System.Reflection.Emit;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.Visitors.SemanticAnalysis;
 
@@ -21,12 +21,13 @@ public partial class Compiler
             EmitCoercion(node.Args[i].AnalysedType, phpFunc.ParameterTypes![i]);
         }
 
-        if (phpFunc.Method?.Method is null)
+        var methodToCall = phpFunc.MethodInfo ?? phpFunc.Method?.Method;
+        if (methodToCall is null)
             throw new InvalidOperationException("The PHP function doesn't have a method?");
 
-        var returnType = phpFunc.Method.Method.ReturnType;
+        var returnType = methodToCall.ReturnType;
 
-        Emit(OpCodes.Call, phpFunc.Method.Method);
+        Emit(OpCodes.Call, methodToCall);
 
         if (TypeTable.IsPrimitive(returnType))
         {

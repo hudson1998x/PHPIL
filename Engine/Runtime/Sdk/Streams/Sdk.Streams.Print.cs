@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.Visitors;
+using PHPIL.Engine.Visitors;
 
 namespace PHPIL.Engine.Runtime.Sdk;
 
@@ -13,6 +13,7 @@ public static partial class SdkInitializer
         {
             Name = "print",
             ParameterTypes = [typeof(string)],
+            MethodInfo = typeof(Streams).GetMethod(nameof(Streams.Print)),
             Method = Streams.Print
         });
     }

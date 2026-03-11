@@ -1,4 +1,4 @@
-﻿using System.Reflection.Emit;
+using System.Reflection.Emit;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
 
@@ -14,6 +14,19 @@ public partial class Compiler
 
             if (stmt is PostfixExpressionNode or PrefixExpressionNode)
                 Emit(OpCodes.Pop);
+                
+            if (stmt is FunctionCallNode callNode && callNode.Callee is IdentifierNode idNode)
+            {
+                var func = FunctionTable.GetFunction(idNode.Token.TextValue(in source));
+                if (func != null)
+                {
+                    Type actualReturn = func.Method?.Method.ReturnType ?? func.ReturnType ?? typeof(object);
+                    if (actualReturn != typeof(void))
+                    {
+                        Emit(OpCodes.Pop);
+                    }
+                }
+            }
 
             if (stmt is BreakNode breakNode)
             {

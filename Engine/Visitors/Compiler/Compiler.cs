@@ -1,4 +1,4 @@
-﻿using System.Reflection.Emit;
+using System.Reflection.Emit;
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
@@ -14,10 +14,7 @@ public partial class Compiler : IVisitor
         throw new NotImplementedException();
     }
 
-    public void VisitReturnNode(ReturnNode node, in ReadOnlySpan<char> source)
-    {
-        throw new NotImplementedException();
-    }
+
 
     public void VisitArgumentListNode(ArgumentListNode node, in ReadOnlySpan<char> source)
     {
@@ -69,13 +66,5 @@ public partial class Compiler : IVisitor
         throw new NotImplementedException();
     }
 
-    public void VisitFunctionNode(FunctionNode node, in ReadOnlySpan<char> source)
-    {
-        throw new NotImplementedException();
-    }
 
-    public void VisitFunctionParameter(FunctionParameter node, in ReadOnlySpan<char> source)
-    {
-        throw new NotImplementedException();
-    }
 }

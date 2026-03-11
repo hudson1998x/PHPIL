@@ -1,4 +1,4 @@
-﻿using PHPIL.Tests.Engine;
+using PHPIL.Tests.Engine;
 using PHPIL.Tests.Engine.Execution.Arrays;
 using PHPIL.Tests.Engine.Execution.Functions;
 
@@ -35,6 +35,7 @@ public partial class TestUtility
         // =============================
         // Now for the execution tests
         // =============================
+        utility.Run<FunctionDeclarationExecutionTests>();
         utility.Run<FunctionCallsExecutionTests>();
         utility.Run<ArrayExecutionTests>();
         

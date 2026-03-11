@@ -1,4 +1,4 @@
-﻿using PHPIL.Engine.Productions.Patterns;
+using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.SyntaxTree.Structure.Loops;
@@ -20,15 +20,7 @@ public partial class SemanticVisitor : IVisitor
         throw new NotImplementedException();
     }
 
-    public void VisitFunctionNode(FunctionNode node, in ReadOnlySpan<char> source)
-    {
-        throw new NotImplementedException();
-    }
 
-    public void VisitFunctionParameter(FunctionParameter node, in ReadOnlySpan<char> source)
-    {
-        throw new NotImplementedException();
-    }
 
     public void Visit(SyntaxNode node, in ReadOnlySpan<char> span)
     {

@@ -1,4 +1,4 @@
-﻿using System.Reflection.Emit;
+using System.Reflection.Emit;
 
 namespace PHPIL.Engine.Visitors;
 
@@ -8,7 +8,7 @@ public static class FunctionTable
 
     public static void RegisterFunction(PhpFunction function)
     {
-        Functions.Add(function.Name!, function);
+        Functions[function.Name!] = function;
     }
 
     public static PhpFunction? GetFunction(string name)

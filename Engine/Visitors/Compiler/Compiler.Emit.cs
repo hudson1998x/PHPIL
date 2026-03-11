@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
 using PHPIL.Engine.Visitors.SemanticAnalysis;
@@ -11,17 +11,21 @@ public partial class Compiler
     private readonly StringBuilder? _ilLog;
     private readonly bool _exposeIl = true;
 
+    public Type ReturnType { get; }
     private Dictionary<string, LocalBuilder> _locals = [];
 
-    public Compiler(string methodName = "phpil_main")
+    public Compiler(string methodName = "phpil_main", Type? returnType = null, Type[]? parameterTypes = null)
     {
-        _method = new DynamicMethod(methodName, typeof(void), []);
+        ReturnType = returnType ?? typeof(void);
+        _method = new DynamicMethod(methodName, ReturnType, parameterTypes ?? [], typeof(Compiler).Module);
 
         if (_exposeIl)
         {
             _ilLog = new StringBuilder();
         }
     }
+
+    public DynamicMethod GetDynamicMethod() => _method;
 
     private ILGenerator GetIl()
     {
@@ -127,6 +131,14 @@ public partial class Compiler
         if (to == typeof(string))
         {
             EmitStringCoercion(from);
+            return;
+        }
+
+        if (to == typeof(object))
+        {
+            if (from == AnalysedType.Int) Emit(OpCodes.Box, typeof(int));
+            if (from == AnalysedType.Float) Emit(OpCodes.Box, typeof(double));
+            if (from == AnalysedType.Boolean) Emit(OpCodes.Box, typeof(bool));
             return;
         }
 
