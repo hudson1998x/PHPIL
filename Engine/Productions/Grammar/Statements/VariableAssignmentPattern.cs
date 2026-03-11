@@ -26,12 +26,16 @@ namespace PHPIL.Engine.Productions.Patterns
             ctx.Consume();
             Parser.SkipTrivia(ref ctx);
 
-            // 3. Match RHS (array literal OR any expression)
+            // 3. Match RHS (array literal, anonymous function OR any expression)
             ExpressionNode? valueNode = null;
 
             if (Grammar.ArrayLiteral().TryMatch(ref ctx, out var arrayLiteral))
             {
                 valueNode = arrayLiteral as ExpressionNode;
+            }
+            else if (Grammar.AnonymousFunction().TryMatch(ref ctx, out var anonFunc))
+            {
+                valueNode = anonFunc as ExpressionNode;
             }
             else if (!new InnerExpressionPattern(0).TryMatch(ref ctx, out var expr))
             {

@@ -91,17 +91,13 @@ public static partial class Lexer
                     AddToken(TokenKind.Variable, varEnd);
                     break;
                 
-                // =====================
-                // NUMERIC LITERALS
-                // =====================
-                
                 case '0': case '1': case '2': case '3': case '4':
                 case '5': case '6': case '7': case '8': case '9':
-                    var numEnd = SeekEndOfNumber(in sourceSpan, position);
-                    // peek whether this ended on a '.' to decide int vs float
-                    var isFloat = numEnd > position 
+                    int numStart = position;
+                    int numEnd = SeekEndOfNumber(in sourceSpan, numStart);
+                    bool isFloat = numEnd > numStart 
                                   && numEnd <= sourceSpan.Length 
-                                  && sourceSpan[position..numEnd].Contains('.');
+                                  && sourceSpan[numStart..numEnd].Contains('.');
                     AddToken(isFloat ? TokenKind.FloatLiteral : TokenKind.IntLiteral, numEnd);
                     break;
                 
@@ -380,8 +376,19 @@ public static partial class Lexer
                     }
                     if (IsSequence(in sourceSpan, position, '-', '>'))
                     {
-                        AddToken(TokenKind.ObjectOperator, position + 2);
+                        AddToken(TokenKind.Arrow, position + 2);
                         continue;
+                    }
+                    if (position + 1 < sourceSpan.Length && char.IsDigit(sourceSpan[position + 1]))
+                    {
+                        // Negative number
+                        int numStart2 = position + 1;
+                        int numEnd2 = SeekEndOfNumber(in sourceSpan, numStart2);
+                        bool isFloat2 = numEnd2 > numStart2 
+                                      && numEnd2 <= sourceSpan.Length 
+                                      && sourceSpan[numStart2..numEnd2].Contains('.');
+                        AddToken(isFloat2 ? TokenKind.FloatLiteral : TokenKind.IntLiteral, numEnd2);
+                        break;
                     }
                     AddToken(TokenKind.Subtract, position + 1);
                     break;
@@ -613,9 +620,9 @@ public static partial class Lexer
                         continue;
                     }
                     if (IsSequence(in sourceSpan, position, 'e', 'l', 's', 'e', ' ', 'i', 'f')
-                        && IsKeywordBoundary(in sourceSpan, position + 7))
+                        && IsKeywordBoundary(in sourceSpan, position + 8))
                     {
-                        AddToken(TokenKind.ElseIf, position + 7);
+                        AddToken(TokenKind.ElseIf, position + 8);
                         continue;
                     }
                     if (IsSequence(in sourceSpan, position, 'e', 'l', 's', 'e')

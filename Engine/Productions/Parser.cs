@@ -192,6 +192,15 @@ namespace PHPIL.Engine.Productions
                     return new PrefixExpressionNode(op, operand);
             }
 
+            // 4b. UNARY +/- OPERATORS
+            if (token.Kind == TokenKind.Add || token.Kind == TokenKind.Subtract)
+            {
+                var op = ctx.Consume();
+                var operand = ParseAtom(ref ctx);
+                if (operand != null)
+                    return new PrefixExpressionNode(op, operand);
+            }
+
             // 5. PAREN GROUP
             if (token.Kind == TokenKind.LeftParen)
             {

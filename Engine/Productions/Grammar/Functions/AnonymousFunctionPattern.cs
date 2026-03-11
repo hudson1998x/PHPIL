@@ -35,12 +35,17 @@ public class AnonymousFunctionPattern : Pattern
         }
 
         Token? returnType = null;
-        if (ctx.Peek().Kind == TokenKind.Colon)
+        if (!ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.Colon)
         {
             ctx.Consume();
             SkipTrivia(ref ctx);
-            returnType = ctx.Consume();
-            SkipTrivia(ref ctx);
+            
+            // The return type could be a type token or identifier
+            if (!ctx.IsAtEnd)
+            {
+                returnType = ctx.Consume();
+                SkipTrivia(ref ctx);
+            }
         }
 
         if (!Grammar.Block().TryMatch(ref ctx, out var bodyNode))

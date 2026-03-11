@@ -68,11 +68,10 @@ public class AnonymousFunctionParserTests : BaseTest
         var source = "function(): int {}";
         var node = ParseAnonFunc(source);
         var anon = (AnonymousFunctionNode)node;
-
-        var returnSpan = ": int {}".AsSpan();
+        var span = source.AsSpan();
 
         AssertEqual(true, anon.ReturnType.HasValue);
-        AssertEqual("int", anon.ReturnType!.Value.TextValue(in returnSpan));
+        AssertEqual("int", anon.ReturnType!.Value.TextValue(in span));
     }
 
     [PHPILTest]
@@ -81,14 +80,13 @@ public class AnonymousFunctionParserTests : BaseTest
         var source = "function($a, $b) use ($x) : string { return $a + $b; }";
         var node = ParseAnonFunc(source);
         var anon = (AnonymousFunctionNode)node;
-
-        var returnSpan = ": string { return $a + $b; }".AsSpan();
+        var span = source.AsSpan();
 
         AssertEqual(2, anon.Params.Count);
         AssertEqual(1, anon.UseCaptures.Count);
 
         AssertEqual(true, anon.ReturnType.HasValue);
-        AssertEqual("string", anon.ReturnType!.Value.TextValue(in returnSpan));
+        AssertEqual("string", anon.ReturnType!.Value.TextValue(in span));
 
         AssertEqual(typeof(BlockNode), anon.Body!.GetType());
     }
