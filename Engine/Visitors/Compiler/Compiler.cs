@@ -36,10 +36,6 @@ public partial class Compiler : IVisitor
         throw new NotImplementedException();
     }
 
-    public void VisitUnaryOpNode(UnaryOpNode node, in ReadOnlySpan<char> source)
-    {
-        throw new NotImplementedException();
-    }
 
     public void VisitElseNode(ElseNode node, in ReadOnlySpan<char> source)
     {
@@ -51,10 +47,6 @@ public partial class Compiler : IVisitor
         throw new NotImplementedException();
     }
 
-    public void VisitTernaryNode(TernaryNode node, in ReadOnlySpan<char> source)
-    {
-        throw new NotImplementedException();
-    }
     
     public void VisitForeachNode(ForeachNode node, in ReadOnlySpan<char> source)
     {

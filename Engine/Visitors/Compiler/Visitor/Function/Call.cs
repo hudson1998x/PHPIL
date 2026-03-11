@@ -29,16 +29,15 @@ public partial class Compiler
 
         Emit(OpCodes.Call, methodToCall);
 
-        if (TypeTable.IsPrimitive(returnType))
+        if (returnType != typeof(void))
         {
             AnalysedType fromAnalysedType = returnType == typeof(int) ? AnalysedType.Int :
                 returnType == typeof(bool) ? AnalysedType.Boolean :
                 returnType == typeof(double) ? AnalysedType.Float :
                 returnType == typeof(string) ? AnalysedType.String :
-                throw new InvalidOperationException("Unknown primitive type");
+                AnalysedType.Mixed;
 
-            Type targetType = typeof(string);
-            TypeTable.CastPrimitive(GetIl(), fromAnalysedType, targetType);
+            EmitCoercion(fromAnalysedType, typeof(object));
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿
+
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
@@ -73,74 +73,58 @@ namespace PHPIL.Engine.Productions
                 case TokenKind.Foreach:
                     if (Grammar.ForeachExpression().TryMatch(ref ctx, out var foreachNode)) return foreachNode;
                     break;
-                
+
                 case TokenKind.Variable:
                 {
-                    // Try variable assignment first
                     if (Grammar.VariableAssignment().TryMatch(ref ctx, out var varNode))
                         return varNode;
 
-                    // If not assignment, try to parse as a simple variable/expression
                     var exprClimber = new InnerExpressionPattern(0);
                     if (exprClimber.TryMatch(ref ctx, out var exprNode))
                         return exprNode;
 
-                    // Nothing worked
                     var variableToken = ctx.Peek();
                     throw new Exception($"Unknown token ({variableToken.Kind}) {variableToken.TextValue(in ctx.Source)}");
                 }
-                
+
                 case TokenKind.FloatLiteral:
                 case TokenKind.IntLiteral:
                 case TokenKind.TrueLiteral:
                 case TokenKind.FalseLiteral:
                 case TokenKind.NullLiteral:
-                    var literalValue = ctx.Consume();
-                    var literalNode = new LiteralNode() { Token = literalValue, RangeStart = ctx.Position - 1, RangeEnd = ctx.Position };
-                    return literalNode;
-                
+                case TokenKind.StringLiteral:
                 case TokenKind.Identifier:
-                    // Try parsing a function call first
-                    if (Grammar.FunctionCall().TryMatch(ref ctx, out var callNode)) 
-                        return callNode;
-
-                    // Otherwise, it’s a plain identifier (variable or constant)
-                    return new IdentifierNode { Token = ctx.Consume() };
-                
                 case TokenKind.LeftParen:
-                    if (Grammar.Expressions.Outer().TryMatch(ref ctx, out var expressionNode))
-                    {
-                        return expressionNode;
-                    }
-                    if (Grammar.Expressions.Inner().TryMatch(ref ctx, out var inner))
-                    {
-                        return inner;
-                    }
-                    throw new  Exception($"Unable to parse expression {ctx.Consume()}");
-                case TokenKind.ExpressionTerminator:
-                    ctx.Peek();
-                    return null;
+                case TokenKind.Not:
+                case TokenKind.Increment:
+                case TokenKind.Decrement:
+                {
+                    var climber = new InnerExpressionPattern(0);
+                    if (climber.TryMatch(ref ctx, out var expr)) return expr;
+                    break;
+                }
+
                 case TokenKind.Break:
                     if (Grammar.Break().TryMatch(ref ctx, out var breakNode)) return breakNode;
                     break;
                 case TokenKind.Continue:
-                    if (Grammar.Continue().TryMatch(ref  ctx, out var continueNode)) return continueNode;
+                    if (Grammar.Continue().TryMatch(ref ctx, out var continueNode)) return continueNode;
                     break;
                 
                 case TokenKind.LeftBrace:
                     if (Grammar.Block().TryMatch(ref ctx, out var blockNode)) return blockNode;
                     break;
 
-                default:
-                    var token = ctx.Peek();
-                    throw new Exception($"Unknown token ({token.Kind}) {token.TextValue(in ctx.Source)}");
+                case TokenKind.ExpressionTerminator:
+                    return null;
             }
 
-            // The Climber (This is the only way into the expression tree)
-            var climber = new InnerExpressionPattern(0);
-            if (climber.TryMatch(ref ctx, out var result)) return result;
+            // Fallback for any other expression-starting tokens
+            var finalClimber = new InnerExpressionPattern(0);
+            if (finalClimber.TryMatch(ref ctx, out var result)) return result;
 
-            return null;
+            var t = ctx.Peek();
+            throw new Exception($"Unknown token ({t.Kind}) {t.TextValue(in ctx.Source)}");
         }
 
         public static SyntaxNode? ParseAtom(ref ParserContext ctx)
@@ -193,7 +177,7 @@ namespace PHPIL.Engine.Productions
             }
 
             // 4b. UNARY +/- OPERATORS
-            if (token.Kind == TokenKind.Add || token.Kind == TokenKind.Subtract)
+            if (token.Kind == TokenKind.Add || token.Kind == TokenKind.Subtract || token.Kind == TokenKind.Not)
             {
                 var op = ctx.Consume();
                 var operand = ParseAtom(ref ctx);

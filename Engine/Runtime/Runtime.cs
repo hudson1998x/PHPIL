@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions;
 using PHPIL.Engine.Runtime.Sdk;
@@ -68,5 +68,24 @@ public static class Runtime
         stream.SetLength(0);
 
         return result;
+    }
+
+    public static bool CoerceToBool(object? obj)
+    {
+        if (obj == null) return false;
+        if (obj is bool b) return b;
+        if (obj is int i) return i != 0;
+        if (obj is double d) return d != 0.0;
+        if (obj is string s) return s != "" && s != "0";
+        if (obj is System.Collections.IDictionary dict) return dict.Count > 0;
+        return true;
+    }
+
+    public static bool StrictEquals(object? a, object? b)
+    {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        if (a.GetType() != b.GetType()) return false;
+        return a.Equals(b);
     }
 }

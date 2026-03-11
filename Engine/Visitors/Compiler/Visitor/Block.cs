@@ -12,20 +12,32 @@ public partial class Compiler
         {
             stmt.Accept(this, in source);
 
-            if (stmt is PostfixExpressionNode or PrefixExpressionNode)
-                Emit(OpCodes.Pop);
-                
-            if (stmt is FunctionCallNode callNode && callNode.Callee is IdentifierNode idNode)
+            if (stmt is ExpressionNode expr)
             {
-                var func = FunctionTable.GetFunction(idNode.Token.TextValue(in source));
-                if (func != null)
+                bool shouldPop = true;
+                if (expr is BinaryOpNode bin && IsAssignment(bin.Operator) && !bin.NeedsValue)
                 {
-                    Type actualReturn = func.Method?.Method.ReturnType ?? func.ReturnType ?? typeof(object);
-                    if (actualReturn != typeof(void))
+                    shouldPop = false;
+                }
+                else if (expr is FunctionCallNode callNode && callNode.Callee is IdentifierNode idNode)
+                {
+                    var func = FunctionTable.GetFunction(idNode.Token.TextValue(in source));
+                    if (func != null)
                     {
-                        Emit(OpCodes.Pop);
+                        var method = func.MethodInfo ?? func.Method?.Method;
+                        if (method != null && method.ReturnType == typeof(void))
+                        {
+                            shouldPop = false;
+                        }
+                        else if (func.ReturnType == typeof(void))
+                        {
+                            shouldPop = false;
+                        }
                     }
                 }
+                
+                if (shouldPop)
+                    Emit(OpCodes.Pop);
             }
 
             if (stmt is BreakNode breakNode)

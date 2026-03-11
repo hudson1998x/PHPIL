@@ -50,22 +50,23 @@ public partial class SemanticVisitor : IVisitor
 
     public void VisitUnaryOpNode(UnaryOpNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        node.Operand?.Accept(this, source);
     }
 
     public void VisitElseNode(ElseNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        node.Body?.Accept(this, source);
     }
 
     public void VisitSyntaxNode(SyntaxNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
     }
 
     public void VisitTernaryNode(TernaryNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        node.Condition?.Accept(this, source);
+        node.Then?.Accept(this, source);
+        node.Else?.Accept(this, source);
     }
 
     

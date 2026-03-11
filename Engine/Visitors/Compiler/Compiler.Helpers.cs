@@ -25,4 +25,10 @@ public partial class Compiler
             }
         }
     }
+
+    private void EmitCoerceToBool()
+    {
+        var method = typeof(Runtime.Runtime).GetMethod("CoerceToBool", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)!;
+        Emit(OpCodes.Call, method);
+    }
 }

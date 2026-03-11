@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
@@ -26,9 +26,9 @@ namespace PHPIL.Engine.Productions.Patterns
             
             Parser.SkipTrivia(ref ctx);
 
-            if (_minPrecedence < 10 && (left is VariableNode || left is ArrayAccessNode) && !ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.AssignEquals)
+            if (_minPrecedence < 10 && (left is VariableNode || left is ArrayAccessNode) && !ctx.IsAtEnd && IsAssignment(ctx.Peek().Kind))
             {
-                // consume '='
+                // consume '=' or '+=' etc
                 var assignToken = ctx.Consume();
 
                 Parser.SkipTrivia(ref ctx);
@@ -41,7 +41,7 @@ namespace PHPIL.Engine.Productions.Patterns
                 {
                     Left = left as ExpressionNode,
                     Right = value as ExpressionNode,
-                    Operator = TokenKind.AssignEquals
+                    Operator = assignToken.Kind
                 };
 
                 return true;
@@ -63,25 +63,19 @@ namespace PHPIL.Engine.Productions.Patterns
 
                 if (isPostfix)
                 {
+                    // Existing postfix logic... (left bracket etc)
                     if (token.Kind == TokenKind.LeftBracket)
                     {
+                        // ... (omitted for brevity, keep existing)
                         Parser.SkipTrivia(ref ctx);
                         ExpressionNode? key = null;
-                        
                         if (ctx.Peek().Kind != TokenKind.RightBracket)
                         {
                             if (new InnerExpressionPattern(0).TryMatch(ref ctx, out var keyNode))
-                            {
                                 key = keyNode as ExpressionNode;
-                            }
                         }
-                        
                         Parser.SkipTrivia(ref ctx);
-                        if (!ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.RightBracket)
-                        {
-                            ctx.Consume();
-                        }
-                        
+                        if (!ctx.IsAtEnd && ctx.Peek().Kind == TokenKind.RightBracket) ctx.Consume();
                         left = new ArrayAccessNode { Array = left as ExpressionNode, Key = key };
                     }
                     else
@@ -89,24 +83,26 @@ namespace PHPIL.Engine.Productions.Patterns
                         left = new PostfixExpressionNode(left, token);
                     }
                 }
+                else if (token.Kind == TokenKind.QuestionMark)
+                {
+                    // Ternary: [left] ? [trueExpr] : [falseExpr]
+                    if (!new InnerExpressionPattern(0).TryMatch(ref ctx, out var trueExpr)) return false;
+                    Parser.SkipTrivia(ref ctx);
+                    if (ctx.Peek().Kind != TokenKind.Colon) throw new Exception("Expected ':' in ternary");
+                    ctx.Consume();
+                    if (!new InnerExpressionPattern(precedence - 1).TryMatch(ref ctx, out var falseExpr)) return false;
+                    left = new TernaryNode { Condition = left as ExpressionNode, Then = trueExpr as ExpressionNode, Else = falseExpr as ExpressionNode };
+                }
                 else
                 {
+                    // Existing binary op logic...
                     int nextMin = isRightAssoc ? precedence - 1 : precedence;
                     Parser.SkipTrivia(ref ctx);
-
                     if (new InnerExpressionPattern(nextMin).TryMatch(ref ctx, out var right))
                     {
-                        left = new BinaryOpNode
-                        {
-                            Left = left as ExpressionNode,
-                            Right = right as ExpressionNode,
-                            Operator = token.Kind
-                        };
+                        left = new BinaryOpNode { Left = left as ExpressionNode, Right = right as ExpressionNode, Operator = token.Kind };
                     }
-                    else
-                    {
-                        break;
-                    }
+                    else break;
                 }
             }
 
@@ -114,14 +110,27 @@ namespace PHPIL.Engine.Productions.Patterns
             return true;
         }
 
+        private bool IsAssignment(TokenKind kind) => kind is
+            TokenKind.AssignEquals or TokenKind.AddAssign or TokenKind.SubtractAssign or
+            TokenKind.MultiplyAssign or TokenKind.DivideAssign or TokenKind.ModuloAssign or
+            TokenKind.PowerAssign or TokenKind.ConcatAppend or TokenKind.NullCoalesceAssign;
+
         private (int Precedence, bool IsPostfix, bool IsRightAssoc) GetOperatorInfo(TokenKind kind) => kind switch
         {
-            TokenKind.AssignEquals or TokenKind.AddAssign or TokenKind.SubtractAssign => (10, false, true),
+            TokenKind.LogicalOrKeyword => (3, false, false),
+            TokenKind.LogicalXorKeyword => (4, false, false),
+            TokenKind.LogicalAndKeyword => (5, false, false),
+            TokenKind.AssignEquals or TokenKind.AddAssign or TokenKind.SubtractAssign 
+                or TokenKind.MultiplyAssign or TokenKind.DivideAssign or TokenKind.ModuloAssign 
+                or TokenKind.PowerAssign or TokenKind.ConcatAppend or TokenKind.NullCoalesceAssign => (10, false, true),
             TokenKind.LogicalOr => (20, false, false),
+            TokenKind.QuestionMark => (15, false, false),
             TokenKind.LogicalAnd => (30, false, false),
-            TokenKind.LessThan or TokenKind.GreaterThan or TokenKind.ShallowEquality or TokenKind.DeepEquality => (35, false, false),
+            TokenKind.LessThan or TokenKind.GreaterThan or TokenKind.LessThanOrEqual or TokenKind.GreaterThanOrEqual 
+                or TokenKind.ShallowEquality or TokenKind.DeepEquality or TokenKind.ShallowInequality or TokenKind.DeepInequality => (35, false, false),
             TokenKind.Add or TokenKind.Subtract or TokenKind.Concat => (40, false, false),
-            TokenKind.Multiply or TokenKind.DivideBy => (50, false, false),
+            TokenKind.Multiply or TokenKind.DivideBy or TokenKind.Modulo => (50, false, false),
+            TokenKind.Power => (60, false, true),
             TokenKind.LeftBracket => (90, true, false),
             TokenKind.Increment or TokenKind.Decrement => (100, true, false),
             _ => (0, false, false)

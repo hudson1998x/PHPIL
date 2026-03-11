@@ -4,7 +4,7 @@ public class PhpFunction
 {
     public string? Name;
 
-    public Type? ReturnType;
+    public Type ReturnType = typeof(void);
 
     public Delegate? Method;
     public System.Reflection.MethodInfo? MethodInfo;
