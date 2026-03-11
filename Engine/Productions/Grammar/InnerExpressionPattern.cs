@@ -38,10 +38,11 @@ namespace PHPIL.Engine.Productions.Patterns
                 if (!new InnerExpressionPattern(0).TryMatch(ref ctx, out var value))
                     return false;
 
-                result = new VariableDeclaration
+                result = new BinaryOpNode
                 {
-                    VariableName = variable.Token,
-                    VariableValue = value as ExpressionNode
+                    Left = variable,
+                    Right = value as ExpressionNode,
+                    Operator = TokenKind.AssignEquals
                 };
 
                 return true;
