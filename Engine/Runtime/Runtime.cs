@@ -9,9 +9,26 @@ namespace PHPIL.Engine.Runtime;
 
 public static class Runtime
 {
+    private static readonly List<Delegate> _autoloaders = new();
+
     static Runtime()
     {
         SdkInitializer.Init();
+    }
+
+    public static void RegisterAutoloader(Delegate autoloader)
+    {
+        _autoloaders.Add(autoloader);
+    }
+
+    public static bool Autoload(string className)
+    {
+        foreach (var autoloader in _autoloaders)
+        {
+            autoloader.DynamicInvoke(className);
+            if (TypeTable.GetType(className)?.RuntimeType != null) return true;
+        }
+        return false;
     }
     
     public static void ExecuteFile(string filePath)

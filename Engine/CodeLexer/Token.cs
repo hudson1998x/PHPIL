@@ -16,6 +16,14 @@ public struct Token
     /// Where does this token end?
     /// </summary>
     public int RangeEnd;
+
+    // Compatibility aliases for existing code that expects Start/Length
+    public int Start
+    {
+        get => RangeStart;
+        set => RangeStart = value;
+    }
+    public int Length => RangeEnd - RangeStart;
     
     /// <summary>
     /// What type of token is this?

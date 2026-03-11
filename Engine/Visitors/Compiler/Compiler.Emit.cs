@@ -7,7 +7,8 @@ namespace PHPIL.Engine.Visitors;
 
 public partial class Compiler
 {
-    private readonly DynamicMethod _method;
+    private readonly DynamicMethod? _method;
+    private readonly ILGenerator _il;
     private readonly StringBuilder? _ilLog;
     private readonly bool _exposeIl = true;
 
@@ -18,6 +19,7 @@ public partial class Compiler
     {
         ReturnType = returnType ?? typeof(void);
         _method = new DynamicMethod(methodName, ReturnType, parameterTypes ?? [], typeof(Compiler).Module);
+        _il = _method.GetILGenerator();
 
         if (_exposeIl)
         {
@@ -25,11 +27,21 @@ public partial class Compiler
         }
     }
 
-    public DynamicMethod GetDynamicMethod() => _method;
+    public Compiler(ILGenerator il, Type returnType)
+    {
+        _il = il;
+        ReturnType = returnType;
+        if (_exposeIl)
+        {
+            _ilLog = new StringBuilder();
+        }
+    }
+
+    public DynamicMethod? GetDynamicMethod() => _method;
 
     private ILGenerator GetIl()
     {
-        return _method.GetILGenerator();
+        return _il;
     }
 
     private void Emit(OpCode opCode)
@@ -97,12 +109,20 @@ public partial class Compiler
 		GetIl().Emit(opCode, method);
 	}
 
-	private void Emit(OpCode opCode, ConstructorInfo constructor)
-	{
-		if (_exposeIl)
-			_ilLog?.AppendLine($"::Emit(OpCode opCode, ConstructorInfo value) \"{opCode}\" {constructor.DeclaringType?.Name}");
-		GetIl().Emit(opCode, constructor);
-	}
+    private void Emit(OpCode opCode, ConstructorInfo constructor)
+    {
+        if (_exposeIl)
+            _ilLog?.AppendLine($"::Emit(OpCode opCode, ConstructorInfo value) \"{opCode}\" {constructor.DeclaringType?.Name}");
+        GetIl().Emit(opCode, constructor);
+    }
+
+    // Support emitting field set/get using FieldInfo / FieldBuilder
+    private void Emit(OpCode opCode, FieldInfo field)
+    {
+        if (_exposeIl)
+            _ilLog?.AppendLine($"::Emit(OpCode opCode, FieldInfo value) \"{opCode}\" {field.Name}");
+        GetIl().Emit(opCode, field);
+    }
 
     private LocalBuilder DeclareLocal(Type type)
     {

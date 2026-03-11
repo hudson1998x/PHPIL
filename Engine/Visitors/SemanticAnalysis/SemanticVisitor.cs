@@ -2,6 +2,7 @@ using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.SyntaxTree.Structure.Loops;
+using PHPIL.Engine.SyntaxTree.Structure.OOP;
 using PHPIL.Engine.Visitors.SemanticAnalysis.Context;
 
 namespace PHPIL.Engine.Visitors.SemanticAnalysis;

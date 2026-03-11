@@ -2,6 +2,7 @@ using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.SyntaxTree.Structure.Loops;
+using PHPIL.Engine.SyntaxTree.Structure.OOP;
 
 namespace PHPIL.Engine.Visitors;
 
@@ -202,5 +203,60 @@ public class Visitor : IVisitor
     public void VisitUseNode(UseNode node, in ReadOnlySpan<char> source)
     {
         foreach (var visitor in _visitors) visitor.VisitUseNode(node, in source);
+    }
+
+    public void VisitClassNode(ClassNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitClassNode(node, in source);
+    }
+
+    public void VisitInterfaceNode(InterfaceNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitInterfaceNode(node, in source);
+    }
+
+    public void VisitTraitNode(TraitNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitTraitNode(node, in source);
+    }
+
+    public void VisitMethodNode(MethodNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitMethodNode(node, in source);
+    }
+
+    public void VisitPropertyNode(PropertyNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitPropertyNode(node, in source);
+    }
+
+    public void VisitNewNode(NewNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitNewNode(node, in source);
+    }
+
+    public void VisitInstanceOfNode(InstanceOfNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitInstanceOfNode(node, in source);
+    }
+
+    public void VisitStaticAccessNode(StaticAccessNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitStaticAccessNode(node, in source);
+    }
+
+    public void VisitParentNode(ParentNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitParentNode(node, in source);
+    }
+
+    public void VisitTraitUseNode(TraitUseNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitTraitUseNode(node, in source);
+    }
+
+    public void VisitConstantNode(ConstantNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitConstantNode(node, in source);
     }
 }

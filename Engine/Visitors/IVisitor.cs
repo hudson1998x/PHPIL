@@ -1,4 +1,6 @@
 ﻿using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.SyntaxTree.Structure;
+using PHPIL.Engine.SyntaxTree.Structure.OOP;
 
 namespace PHPIL.Engine.Visitors;
 
@@ -31,4 +33,6 @@ public partial interface IVisitor
     /// <param name="span">The original source text. Passed as <c>in</c> to avoid
     /// copying the span at every level of the traversal.</param>
     public void Visit(SyntaxNode node, in ReadOnlySpan<char> span);
+    void VisitQualifiedNameNode(QualifiedNameNode node, in ReadOnlySpan<char> source);
+    void VisitObjectAccessNode(ObjectAccessNode node, in ReadOnlySpan<char> source);
 }

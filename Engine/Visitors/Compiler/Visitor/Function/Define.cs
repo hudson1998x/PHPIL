@@ -21,11 +21,15 @@ public partial class Compiler
         var returnType = typeof(object); // Default to mixed for now
         if (node.ReturnType != null)
         {
-            var returnTypeStr = node.ReturnType.Value.TextValue(in source);
-            if (TypeTable._types.TryGetValue(returnTypeStr, out var mappedType))
+            returnType = node.ReturnType.Value.TextValue(in source) switch
             {
-                returnType = mappedType;
-            }
+                "int" => typeof(int),
+                "float" or "double" => typeof(double),
+                "string" => typeof(string),
+                "bool" => typeof(bool),
+                "void" => typeof(void),
+                _ => typeof(object)
+            };
         }
 
         var innerCompiler = new Compiler(functionName, returnType, parameterTypes);

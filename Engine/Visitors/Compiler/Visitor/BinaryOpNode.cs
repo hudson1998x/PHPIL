@@ -3,6 +3,7 @@ using System.Reflection.Emit;
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
+using PHPIL.Engine.SyntaxTree.Structure.OOP;
 
 namespace PHPIL.Engine.Visitors;
 
@@ -185,6 +186,57 @@ public partial class Compiler
                 var appendMethod = typeof(Runtime.Sdk.ArrayHelpers).GetMethod("Append", new[] { typeof(Dictionary<object, object>), typeof(object) })!;
                 Emit(OpCodes.Call, appendMethod);
             }
+        }
+        else if (node.Left is ObjectAccessNode objAccess)
+        {
+            // $obj->prop = value
+            objAccess.Object?.Accept(this, source);
+            node.Right?.Accept(this, source);
+            EmitBoxingIfLiteral(node.Right);
+
+            if (node.NeedsValue) Emit(OpCodes.Dup);
+
+            var propName = objAccess.Property.Token.TextValue(in source);
+            Type? targetType = null;
+            if (objAccess.Object is VariableNode vn && vn.Token.TextValue(in source) == "$this")
+                targetType = _currentType;
+
+            if (targetType != null)
+            {
+                var field = targetType.GetField(propName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field != null)
+                {
+                    Emit(OpCodes.Stfld, (System.Reflection.FieldInfo)field);
+                    return;
+                }
+            }
+            throw new NotImplementedException($"Property write '{propName}' not found or type unknown.");
+        }
+        else if (node.Left is StaticAccessNode staticAccess)
+        {
+            // Class::$prop = value
+            node.Right?.Accept(this, source);
+            EmitBoxingIfLiteral(node.Right);
+            if (node.NeedsValue) Emit(OpCodes.Dup);
+
+            var memberName = staticAccess.MemberName.Token.TextValue(in source);
+            Type? targetType = null;
+            if (staticAccess.Target is QualifiedNameNode qname)
+            {
+                var fqn = ResolveFQN(qname, source);
+                targetType = TypeTable.GetType(fqn)?.RuntimeType;
+            }
+
+            if (targetType != null)
+            {
+                var field = targetType.GetField(memberName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    Emit(OpCodes.Stsfld, (System.Reflection.FieldInfo)field);
+                    return;
+                }
+            }
+            throw new NotImplementedException($"Static property write '{memberName}' not found.");
         }
     }
 

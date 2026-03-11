@@ -4,6 +4,7 @@ using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.Visitors;
 using PHPIL.Engine.SyntaxTree.Structure;
+using PHPIL.Engine.SyntaxTree.Structure.OOP;
 
 namespace PHPIL.Engine.Productions.Patterns
 {
@@ -88,6 +89,16 @@ namespace PHPIL.Engine.Productions.Patterns
                         }
                         else throw new Exception("Expected identifier after '->'");
                     }
+                    else if (token.Kind == TokenKind.ScopeResolution)
+                    {
+                        Parser.SkipTrivia(ref ctx);
+                        if (ctx.Peek().Kind == TokenKind.Identifier)
+                        {
+                            var member = new IdentifierNode { Token = ctx.Consume() };
+                            left = new StaticAccessNode { Target = left as ExpressionNode, MemberName = member };
+                        }
+                        else throw new Exception("Expected identifier after '::'");
+                    }
                     else
                     {
                         left = new PostfixExpressionNode(left, token);
@@ -111,7 +122,14 @@ namespace PHPIL.Engine.Productions.Patterns
                     Parser.SkipTrivia(ref ctx);
                     if (new InnerExpressionPattern(nextMin).TryMatch(ref ctx, out var right))
                     {
-                        left = new BinaryOpNode { Left = left as ExpressionNode, Right = right as ExpressionNode, Operator = token.Kind };
+                        if (token.Kind == TokenKind.Instanceof)
+                        {
+                            left = new InstanceOfNode { Expression = left as ExpressionNode, ClassIdentifier = right as ExpressionNode };
+                        }
+                        else
+                        {
+                            left = new BinaryOpNode { Left = left as ExpressionNode, Right = right as ExpressionNode, Operator = token.Kind };
+                        }
                     }
                     else break;
                 }
@@ -138,13 +156,14 @@ namespace PHPIL.Engine.Productions.Patterns
             TokenKind.QuestionMark => (15, false, false),
             TokenKind.LogicalAnd => (30, false, false),
             TokenKind.LessThan or TokenKind.GreaterThan or TokenKind.LessThanOrEqual or TokenKind.GreaterThanOrEqual 
-                or TokenKind.ShallowEquality or TokenKind.DeepEquality or TokenKind.ShallowInequality or TokenKind.DeepInequality => (35, false, false),
+                or TokenKind.ShallowEquality or TokenKind.DeepEquality or TokenKind.ShallowInequality or TokenKind.DeepInequality 
+                or TokenKind.Instanceof => (35, false, false),
             TokenKind.Add or TokenKind.Subtract or TokenKind.Concat => (40, false, false),
             TokenKind.Multiply or TokenKind.DivideBy or TokenKind.Modulo => (50, false, false),
             TokenKind.Power => (60, false, true),
             TokenKind.LeftBracket => (90, true, false),
             TokenKind.Increment or TokenKind.Decrement => (100, true, false),
-            TokenKind.ObjectOperator => (110, true, false),
+            TokenKind.ObjectOperator or TokenKind.ScopeResolution => (110, true, false),
             _ => (0, false, false)
         };
     }

@@ -2,6 +2,7 @@
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.SyntaxTree.Structure.OOP;
 
 namespace PHPIL.Engine.Productions
 {
@@ -60,6 +61,20 @@ namespace PHPIL.Engine.Productions
 
                 case TokenKind.Use:
                     if (Grammar.Use().TryMatch(ref ctx, out var use)) return use;
+                    break;
+            
+                case TokenKind.Class:
+                case TokenKind.Abstract:
+                case TokenKind.Final:
+                    if (Grammar.ClassDeclaration().TryMatch(ref ctx, out var classNode)) return classNode;
+                    break;
+
+                case TokenKind.Interface:
+                    if (Grammar.InterfaceDeclaration().TryMatch(ref ctx, out var interfaceNode)) return interfaceNode;
+                    break;
+
+                case TokenKind.Trait:
+                    if (Grammar.TraitDeclaration().TryMatch(ref ctx, out var traitNode)) return traitNode;
                     break;
             
                 case TokenKind.Return:
@@ -163,6 +178,20 @@ namespace PHPIL.Engine.Productions
 
                 // Fallback to plain variable
                 return new VariableNode { Token = ctx.Consume() };
+            }
+
+            // 2b. NEW
+            if (token.Kind == TokenKind.New)
+            {
+                if (Grammar.NewExpression().TryMatch(ref ctx, out var newNode))
+                    return newNode;
+            }
+            
+            // 2c. PARENT
+            if (token.Kind == TokenKind.Identifier && token.TextValue(in ctx.Source).Equals("parent", StringComparison.OrdinalIgnoreCase))
+            {
+                ctx.Consume();
+                return new ParentNode();
             }
 
             // 3. LITERALS

@@ -1,6 +1,8 @@
+using System.Reflection;
 using System.Reflection.Emit;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
+using PHPIL.Engine.SyntaxTree.Structure.OOP;
 using PHPIL.Engine.Visitors.SemanticAnalysis;
 
 namespace PHPIL.Engine.Visitors;
@@ -9,6 +11,52 @@ public partial class Compiler
 {
     public void VisitFunctionCallNode(FunctionCallNode node, in ReadOnlySpan<char> source)
     {
+        // Try instance method call first
+        if (node.Callee is ObjectAccessNode objAccess)
+        {
+            // Instance method call: $obj->method(...)
+            objAccess.Object?.Accept(this, source); // Push object
+            var methodName = objAccess.Property.Token.TextValue(in source);
+            Type? targetType = null;
+            if (objAccess.Object is VariableNode varNode && varNode.Token.TextValue(in source) == "$this")
+            {
+                targetType = _currentType;
+            }
+            if (targetType != null)
+            {
+                var method = targetType.GetMethod(methodName);
+                if (method != null)
+                {
+                    foreach (var arg in node.Args) arg.Accept(this, source);
+                    Emit(OpCodes.Callvirt, method);
+                    return;
+                }
+            }
+            throw new NotImplementedException($"Dynamic method call '{methodName}' is not yet implemented.");
+        }
+        // Static method call
+        else if (node.Callee is StaticAccessNode staticAccess)
+        {
+            var methodName = staticAccess.MemberName.Token.TextValue(in source);
+            Type? targetType = null;
+            if (staticAccess.Target is QualifiedNameNode qname)
+            {
+                var fqn = ResolveFQN(qname, source);
+                targetType = TypeTable.GetType(fqn)?.RuntimeType;
+            }
+            if (targetType != null)
+            {
+                var method = targetType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
+                if (method != null)
+                {
+                    foreach (var arg in node.Args) arg.Accept(this, source);
+                    Emit(OpCodes.Call, method);
+                    return;
+                }
+            }
+            throw new NotImplementedException($"Static method call '{methodName}' not found.");
+        }
+        // Regular function call
         var phpFunc = ResolveFunction(node.Callee, in source);
         if (phpFunc == null)
         {
@@ -26,7 +74,6 @@ public partial class Compiler
             }
             throw new NotImplementedException($"The function {name} is not implemented yet");
         }
-
         ResolveParamsAndCall(node, phpFunc, source);
     }
 

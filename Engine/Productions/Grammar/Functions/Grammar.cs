@@ -10,4 +10,5 @@ public static partial class Grammar
     public static Pattern FunctionDeclaration() => new FunctionDeclarationPattern();
     
     public static Pattern AnonymousFunction() => new AnonymousFunctionPattern();
+    public static Pattern ArgumentList() => new ArgumentListPattern();
 }

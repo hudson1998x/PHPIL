@@ -1,8 +1,14 @@
 ﻿<?php
 
-function do_something(string $username): string
+trait MyObject
 {
-    print("Hello, " . $username);    
+    public function getNumber(): int
+    {
+        return 5;
+    }    
 }
 
-do_something("John");
+class Other
+{
+    use MyObject;    
+}

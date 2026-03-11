@@ -2,6 +2,7 @@ using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
+using PHPIL.Engine.SyntaxTree.Structure.OOP;
 
 
 namespace PHPIL.Engine.Productions.Patterns
@@ -117,18 +118,11 @@ namespace PHPIL.Engine.Productions.Patterns
                     if (varEnd + 2 < content.Length && content[varEnd] == '-' && content[varEnd + 1] == '>')
                     {
                         int propEnd = Lexer.GetIdentifierEnd(content.AsSpan(), varEnd + 2);
-                        if (propEnd > varEnd + 2)
-                        {
-                            var propName = content.Substring(varEnd + 2, propEnd - varEnd - 2);
-                            varNode = new ObjectAccessNode 
-                            { 
-                                Object = varNode, 
-                                Property = new IdentifierNode { Token = new Token { Kind = TokenKind.Identifier, RangeStart = token.RangeStart + 1 + varEnd + 2, RangeEnd = token.RangeStart + 1 + propEnd } } 
-                            };
-                            i = propEnd;
-                            parts.Add(varNode);
-                            continue;
-                        }
+                        // Property access via "->" is not yet modeled in this interpolation path.
+                        // Fall back to treating the base variable as the interpolated part.
+                        parts.Add(varNode);
+                        i = varEnd;
+                        continue;
                     }
 
                     parts.Add(varNode);

@@ -11,6 +11,8 @@ public partial class Compiler : IVisitor
 {
     private string _currentNamespace = "";
     private readonly Dictionary<string, string> _useImports = [];
+    private Type? _currentType;
+    private bool _isStaticMethod;
 
     public void Visit(SyntaxNode node, in ReadOnlySpan<char> span)
     {

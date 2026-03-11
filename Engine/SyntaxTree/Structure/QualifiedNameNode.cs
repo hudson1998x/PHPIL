@@ -27,12 +27,3 @@ namespace PHPIL.Engine.SyntaxTree.Structure
         }
     }
 }
-
-namespace PHPIL.Engine.Visitors
-{
-    using PHPIL.Engine.SyntaxTree.Structure;
-    public partial interface IVisitor
-    {
-        void VisitQualifiedNameNode(QualifiedNameNode node, in ReadOnlySpan<char> source);
-    }
-}

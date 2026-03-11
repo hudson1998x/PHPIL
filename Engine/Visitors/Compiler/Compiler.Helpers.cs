@@ -2,6 +2,7 @@ using System.Reflection.Emit;
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
+using PHPIL.Engine.SyntaxTree.Structure.OOP;
 
 namespace PHPIL.Engine.Visitors;
 
@@ -75,6 +76,21 @@ public partial class Compiler
             }
             return phpFunc;
         }
-        return null;
+        else
+        {
+            ObjectAccessNode? objectAccess = callee as ObjectAccessNode;
+            if (objectAccess != null)
+            {
+                // For now, we can't fully resolve the method at compile time without type inference.
+                // We'll need to emit a dynamic call or find a way to verify the type.
+                // If it's $this, we know the type!
+                return null; // Return null for now, handle in ResolveParamsAndCall
+            }
+            else if (callee is StaticAccessNode staticAccess)
+            {
+                return null; // Handle in ResolveParamsAndCall
+            }
+            return null;
+        }
     }
 }
