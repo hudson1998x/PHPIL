@@ -203,16 +203,15 @@ public partial class Compiler
 
             if (node.NeedsValue) Emit(OpCodes.Dup);
 
-            Type? targetType = null;
-            if (objAccess.Object is VariableNode vn && vn.Token.TextValue(in source) == "$this")
-                targetType = _currentType;
-
-            if (targetType != null)
+            // Check if it's $this and we have the field builder
+            if (objAccess.Object is VariableNode vn && vn.Token.TextValue(in source) == "$this" && _currentType != null)
             {
-                var field = targetType.GetField(propName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                if (field != null)
+                var fqn = _currentType.Name.Replace(".", "\\");
+                var phpType = TypeTable.GetType(fqn);
+                if (phpType != null && phpType.FieldBuilders.TryGetValue(propName, out var fieldBuilder))
                 {
-                    Emit(OpCodes.Stfld, (System.Reflection.FieldInfo)field);
+                    // Direct field assignment
+                    Emit(OpCodes.Stfld, fieldBuilder);
                     return;
                 }
             }

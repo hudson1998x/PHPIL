@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Reflection.Emit;
 
 namespace PHPIL.Engine.Runtime.Sdk;
 
@@ -10,23 +11,35 @@ public static class RuntimeHelpers
         
         var type = obj.GetType();
         
-        var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
-            .Where(m => m.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        
-        foreach (var method in methods)
+        try 
         {
-            var parameters = method.GetParameters();
-            if (parameters.Length == args.Length)
+            var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
+                .Where(m => m.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            
+            foreach (var method in methods)
             {
-                return method.Invoke(obj, args) ?? (object)"";
+                var parameters = method.GetParameters();
+                if (parameters.Length == args.Length)
+                {
+                    return method.Invoke(obj, args) ?? (object)"";
+                }
+            }
+            
+            if (methods.Length > 0)
+            {
+                var paramCounts = string.Join(", ", methods.Select(m => m.GetParameters().Length));
+                throw new Exception($"Method '{methodName}' found but no matching overload ({paramCounts})");
             }
         }
-        
-        if (methods.Length > 0)
+        catch (System.Reflection.TargetInvocationException)
         {
-            var paramCounts = string.Join(", ", methods.Select(m => m.GetParameters().Length));
-            throw new Exception($"Method '{methodName}' found but no matching overload ({paramCounts})");
+            // Swallow - this happens with dynamic types
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Error calling method '{methodName}' on {type.Name}: {ex.Message}");
         }
         
         throw new Exception($"Method '{methodName}' not found on type '{type.Name}'");
@@ -61,6 +74,7 @@ public static class RuntimeHelpers
         if (obj == null) throw new Exception("Cannot access property on null");
         
         var type = obj.GetType();
+        
         var field = type.GetField(propertyName, BindingFlags.Public | BindingFlags.Instance);
         
         if (field != null)

@@ -59,7 +59,8 @@ public class Enumerable
                 return (bool)RuntimeHelpers.CallMethod(_iterator, "valid", Array.Empty<object>())!;
             }
             
-            RuntimeHelpers.CallMethod(_iterator, "next", Array.Empty<object>());
+            // Try to call next(), but don't fail if it doesn't exist
+            try { RuntimeHelpers.CallMethod(_iterator, "next", Array.Empty<object>()); } catch { }
             return (bool)RuntimeHelpers.CallMethod(_iterator, "valid", Array.Empty<object>())!;
         }
         

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection.Emit;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure.OOP;
 
@@ -12,6 +13,9 @@ public class PhpType
     public ClassNode? Definition { get; set; }
     public InterfaceNode? InterfaceDefinition { get; set; }
     public TraitNode? TraitDefinition { get; set; }
+    
+    // Store field builders for access during method compilation
+    public Dictionary<string, FieldBuilder> FieldBuilders { get; } = new Dictionary<string, FieldBuilder>(StringComparer.OrdinalIgnoreCase);
     
     public bool IsInterface => InterfaceDefinition != null;
     public bool IsTrait => TraitDefinition != null;

@@ -106,11 +106,17 @@ namespace PHPIL.Engine.Productions
             Parser.SkipTrivia(ref ctx);
 
             var members = new List<SyntaxNode>();
+            int loopCount = 0;
             while (!ctx.IsAtEnd && ctx.Peek().Kind != TokenKind.RightBrace)
             {
+                loopCount++;
+                if (loopCount > 20) {
+                    throw new Exception($"Infinite loop detected in class pattern, current token: {ctx.Peek().Kind}");
+                }
                 Parser.SkipTrivia(ref ctx);
                 if (ctx.Peek().Kind == TokenKind.RightBrace) break;
 
+                // Try to parse each member type
                 if (new TraitUsePattern().TryMatch(ref ctx, out var traitUse))
                 {
                     members.Add(traitUse);

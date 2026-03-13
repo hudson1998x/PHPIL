@@ -36,14 +36,6 @@ public partial class Compiler
     {
         var fqn = ResolveFQN(node.Name, source);
         var typeName = fqn.Replace("\\", ".");
-        
-        // Check if type already exists - if so, skip redefinition
-        var existingPhpType = TypeTable.GetType(fqn);
-        if (existingPhpType?.RuntimeType != null)
-        {
-            return;
-        }
-        
         var typeBuilder = ModuleBuilder.DefineType(typeName, TypeAttributes.Public | TypeAttributes.Class);
 
         // Handle inheritance
@@ -85,6 +77,9 @@ public partial class Compiler
         // Pass 1: Define members (headers)
         var methodBuilders = new List<(MethodNode Node, MethodBuilder Builder)>();
         var fieldBuilders = new List<(PropertyNode Node, FieldBuilder Builder)>();
+        
+        // Get PhpType for field lookup
+        var phpType = TypeTable.GetType(fqn);
 
         var allMembers = new List<SyntaxNode>(node.Members);
         allMembers.AddRange(traitMembers);
@@ -107,6 +102,7 @@ public partial class Compiler
                 var attrs = MapFieldAttributes(propNode.Modifiers);
                 var fb = typeBuilder.DefineField(propName, typeof(object), attrs);
                 fieldBuilders.Add((propNode, fb));
+                phpType.FieldBuilders[propName] = fb;
             }
             else if (member is ConstantNode constNode)
             {
@@ -219,7 +215,6 @@ public partial class Compiler
         ctorIl.Emit(OpCodes.Ret);
 
         var finishedTypeInstance = typeBuilder.CreateType();
-        var phpType = TypeTable.GetType(fqn);
         if (phpType != null) phpType.RuntimeType = finishedTypeInstance;
         
         // Set static property defaults in the runtime helper dictionary
@@ -290,6 +285,7 @@ public partial class Compiler
             Emit(OpCodes.Dup);
             Emit(OpCodes.Ldc_I4, i);
             node.Arguments[i].Accept(this, source);
+
             EmitBoxingIfLiteral(node.Arguments[i]);
             Emit(OpCodes.Stelem_Ref);
         }
@@ -388,10 +384,20 @@ public partial class Compiler
         node.Object?.Accept(this, source);
         var propName = node.Property.Token.TextValue(in source);
 
-        // Check if it's $this - use runtime helper since type might not be finalized yet
+        // Check if it's $this and we have the field builder
         if (node.Object is VariableNode varNode && varNode.Token.TextValue(in source) == "$this" && !_isStaticMethod && _currentType != null)
         {
-            // Use runtime helper for property access
+            // Get the PhpType for the current class
+            var fqn = _currentType.Name.Replace(".", "\\");
+            var phpType = TypeTable.GetType(fqn);
+            if (phpType != null && phpType.FieldBuilders.TryGetValue(propName, out var fieldBuilder))
+            {
+                // Direct field access - much more efficient than reflection
+                Emit(OpCodes.Ldfld, fieldBuilder);
+                return;
+            }
+            
+            // Fall back to runtime helper if field not found
             Emit(OpCodes.Ldstr, propName);
             var getPropMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("GetProperty", new[] { typeof(object), typeof(string) })!;
             Emit(OpCodes.Call, getPropMethod);
