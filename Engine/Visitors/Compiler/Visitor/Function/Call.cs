@@ -17,27 +17,54 @@ public partial class Compiler
             // Instance method call: $obj->method(...)
             objAccess.Object?.Accept(this, source); // Push object
             var methodName = objAccess.Property.Token.TextValue(in source);
-            Type? targetType = null;
-            if (objAccess.Object is VariableNode varNode && varNode.Token.TextValue(in source) == "$this")
+            MethodInfo? method = null;
+            
+            // Check if it's $this
+            if (objAccess.Object is VariableNode varNode && varNode.Token.TextValue(in source) == "$this" && _currentType != null)
             {
-                targetType = _currentType;
+                // Try to get method from TypeTable
+                var fqn = _currentType.Name.Replace(".", "\\");
+                method = TypeTable.GetMethod(fqn, methodName);
             }
-            if (targetType != null)
+            
+            if (method != null)
             {
-                var method = targetType.GetMethod(methodName);
-                if (method != null)
-                {
-                    foreach (var arg in node.Args) arg.Accept(this, source);
-                    Emit(OpCodes.Callvirt, method);
-                    return;
-                }
+                foreach (var arg in node.Args) arg.Accept(this, source);
+                Emit(OpCodes.Callvirt, method);
+                return;
             }
-            throw new NotImplementedException($"Dynamic method call '{methodName}' is not yet implemented.");
+            
+            // Fall back to runtime helper for dynamic method calls
+            Emit(OpCodes.Ldstr, methodName);
+            var callMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("CallMethod", new[] { typeof(object), typeof(string), typeof(object[]) })!;
+            
+            // Emit argument count
+            Emit(OpCodes.Ldc_I4, node.Args.Count);
+            Emit(OpCodes.Newarr, typeof(object));
+            
+            // Store args to array
+            for (int i = 0; i < node.Args.Count; i++)
+            {
+                Emit(OpCodes.Dup);
+                Emit(OpCodes.Ldc_I4, i);
+                node.Args[i].Accept(this, source);
+                EmitBoxingIfLiteral(node.Args[i]);
+                Emit(OpCodes.Stelem_Ref);
+            }
+            
+            Emit(OpCodes.Call, callMethod);
+            return;
         }
         // Static method call
         else if (node.Callee is StaticAccessNode staticAccess)
         {
-            var methodName = staticAccess.MemberName.Token.TextValue(in source);
+            string? methodName = null;
+            if (staticAccess.MemberName is IdentifierNode idNode)
+                methodName = idNode.Token.TextValue(in source);
+            
+            if (methodName == null)
+                throw new Exception("Cannot resolve static method name");
+                
             Type? targetType = null;
             if (staticAccess.Target is QualifiedNameNode qname)
             {

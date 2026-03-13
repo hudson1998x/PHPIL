@@ -8,9 +8,14 @@ public partial class Compiler
     public void VisitVariableNode(VariableNode node, in ReadOnlySpan<char> source)
     {
         var varName = node.Token.TextValue(in source);
+
+        // Handle $this - check locals first (new approach), fallback to ldarg_0 (original)
         if (varName == "$this" && !_isStaticMethod && _currentType != null)
         {
-            Emit(OpCodes.Ldarg_0);
+            if (_locals.TryGetValue("$this", out var thisLocal))
+                Emit(OpCodes.Ldloc, thisLocal);
+            else
+                Emit(OpCodes.Ldarg_0);
             return;
         }
 

@@ -376,7 +376,7 @@ public static partial class Lexer
                     }
                     if (IsSequence(in sourceSpan, position, '-', '>'))
                     {
-                        AddToken(TokenKind.Arrow, position + 2);
+                        AddToken(TokenKind.ObjectOperator, position + 2);
                         continue;
                     }
                     if (position + 1 < sourceSpan.Length && char.IsDigit(sourceSpan[position + 1]))

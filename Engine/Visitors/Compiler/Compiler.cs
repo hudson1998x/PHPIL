@@ -1,8 +1,5 @@
-using System.Reflection.Emit;
-using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
-using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.SyntaxTree.Structure.Loops;
 
 namespace PHPIL.Engine.Visitors;

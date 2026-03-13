@@ -191,12 +191,18 @@ public partial class Compiler
         {
             // $obj->prop = value
             objAccess.Object?.Accept(this, source);
+
+            var propName = objAccess.Property.Token.TextValue(in source);
+            
+            // Push property name BEFORE value so stack order is correct for SetProperty(obj, propName, value)
+            // Stack order needed: [obj, propName, value]
+            Emit(OpCodes.Ldstr, propName);
+            
             node.Right?.Accept(this, source);
             EmitBoxingIfLiteral(node.Right);
 
             if (node.NeedsValue) Emit(OpCodes.Dup);
 
-            var propName = objAccess.Property.Token.TextValue(in source);
             Type? targetType = null;
             if (objAccess.Object is VariableNode vn && vn.Token.TextValue(in source) == "$this")
                 targetType = _currentType;
@@ -210,7 +216,10 @@ public partial class Compiler
                     return;
                 }
             }
-            throw new NotImplementedException($"Property write '{propName}' not found or type unknown.");
+            
+            // Fall back to runtime helper for dynamic property write
+            var setPropMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("SetProperty", new[] { typeof(object), typeof(string), typeof(object) })!;
+            Emit(OpCodes.Call, setPropMethod);
         }
         else if (node.Left is StaticAccessNode staticAccess)
         {
@@ -219,7 +228,15 @@ public partial class Compiler
             EmitBoxingIfLiteral(node.Right);
             if (node.NeedsValue) Emit(OpCodes.Dup);
 
-            var memberName = staticAccess.MemberName.Token.TextValue(in source);
+            string? memberName = null;
+            if (staticAccess.MemberName is IdentifierNode idNode)
+                memberName = idNode.Token.TextValue(in source);
+            else if (staticAccess.MemberName is VariableNode staticVarNode)
+                memberName = staticVarNode.Token.TextValue(in source);
+                
+            if (memberName == null)
+                throw new Exception("Cannot resolve static property name");
+                
             Type? targetType = null;
             if (staticAccess.Target is QualifiedNameNode qname)
             {

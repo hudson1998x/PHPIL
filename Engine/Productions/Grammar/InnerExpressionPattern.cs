@@ -86,16 +86,99 @@ namespace PHPIL.Engine.Productions.Patterns
                         {
                             var prop = new IdentifierNode { Token = ctx.Consume() };
                             left = new ObjectAccessNode { Object = left as ExpressionNode, Property = prop };
+                            
+                            // Check if this is a method call (followed by '(')
+                            Parser.SkipTrivia(ref ctx);
+                            if (ctx.Peek().Kind == TokenKind.LeftParen)
+                            {
+                                // Parse method call arguments
+                                ctx.Consume(); // consume '('
+                                var args = new List<ExpressionNode>();
+                                while (!ctx.IsAtEnd && ctx.Peek().Kind != TokenKind.RightParen)
+                                {
+                                    Parser.SkipTrivia(ref ctx);
+                                    if (new InnerExpressionPattern(0).TryMatch(ref ctx, out var arg))
+                                    {
+                                        args.Add((ExpressionNode)arg!);
+                                    }
+                                    else break;
+                                    Parser.SkipTrivia(ref ctx);
+                                    if (ctx.Peek().Kind == TokenKind.Comma)
+                                    {
+                                        ctx.Consume();
+                                    }
+                                    else break;
+                                }
+                                Parser.SkipTrivia(ref ctx);
+                                if (ctx.Peek().Kind == TokenKind.RightParen)
+                                    ctx.Consume();
+                                
+                                // Create function call node from object access
+                                left = new FunctionCallNode
+                                {
+                                    Callee = left as ExpressionNode,
+                                    Args = args
+                                };
+                            }
                         }
                         else throw new Exception("Expected identifier after '->'");
                     }
                     else if (token.Kind == TokenKind.ScopeResolution)
                     {
                         Parser.SkipTrivia(ref ctx);
-                        if (ctx.Peek().Kind == TokenKind.Identifier)
+                        if (ctx.Peek().Kind == TokenKind.Identifier || ctx.Peek().Kind == TokenKind.Variable)
                         {
-                            var member = new IdentifierNode { Token = ctx.Consume() };
-                            left = new StaticAccessNode { Target = left as ExpressionNode, MemberName = member };
+                            SyntaxNode? memberNode = null;
+                            
+                            // Check if this is a static method call (followed by '(')
+                            var firstToken = ctx.Peek();
+                            ctx.Consume();
+                            
+                            Parser.SkipTrivia(ref ctx);
+                            if (ctx.Peek().Kind == TokenKind.LeftParen)
+                            {
+                                // Parse method call arguments
+                                ctx.Consume(); // consume '('
+                                var args = new List<ExpressionNode>();
+                                while (!ctx.IsAtEnd && ctx.Peek().Kind != TokenKind.RightParen)
+                                {
+                                    Parser.SkipTrivia(ref ctx);
+                                    if (new InnerExpressionPattern(0).TryMatch(ref ctx, out var arg))
+                                    {
+                                        args.Add((ExpressionNode)arg!);
+                                    }
+                                    else break;
+                                    Parser.SkipTrivia(ref ctx);
+                                    if (ctx.Peek().Kind == TokenKind.Comma)
+                                    {
+                                        ctx.Consume();
+                                    }
+                                    else break;
+                                }
+                                Parser.SkipTrivia(ref ctx);
+                                if (ctx.Peek().Kind == TokenKind.RightParen)
+                                    ctx.Consume();
+                                
+                                // Create function call node from static access
+                                var member = new IdentifierNode { Token = firstToken };
+                                left = new FunctionCallNode
+                                {
+                                    Callee = new StaticAccessNode { Target = left as ExpressionNode, MemberName = member },
+                                    Args = args
+                                };
+                            }
+                            else if (firstToken.Kind == TokenKind.Variable)
+                            {
+                                // Static property access with variable: Class::$prop
+                                var varNode = new VariableNode { Token = firstToken };
+                                left = new StaticAccessNode { Target = left as ExpressionNode, MemberName = varNode as SyntaxNode };
+                            }
+                            else
+                            {
+                                // Just static property access with identifier: Class::CONST
+                                var member = new IdentifierNode { Token = firstToken };
+                                left = new StaticAccessNode { Target = left as ExpressionNode, MemberName = member };
+                            }
                         }
                         else throw new Exception("Expected identifier after '::'");
                     }

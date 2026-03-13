@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Reflection.Emit;
+using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.SyntaxTree.Structure.OOP;
@@ -96,8 +97,21 @@ public partial class Compiler
             {
                 var constName = constNode.Name.Token.TextValue(in source);
                 var fb = typeBuilder.DefineField(constName, typeof(object), FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal | FieldAttributes.HasDefault);
-                // Literals need to be set during definition if possible, or in static constructor
-                // For PHPIL, we might just use a static field for now.
+                
+                // Set the constant value if it's a literal
+                if (constNode.Value is LiteralNode literal)
+                {
+                    var tokenText = literal.Token.TextValue(in source);
+                    if (literal.Token.Kind == TokenKind.IntLiteral)
+                    {
+                        if (int.TryParse(tokenText, out int intVal))
+                            fb.SetConstant(intVal);
+                    }
+                    else if (literal.Token.Kind == TokenKind.StringLiteral)
+                    {
+                        fb.SetConstant(tokenText.Trim('"', '\''));
+                    }
+                }
             }
         }
 
@@ -137,6 +151,15 @@ public partial class Compiler
                 innerCompiler.Emit(OpCodes.Stloc, local);
             }
 
+            // Declare $this for instance methods
+            if (!isStatic)
+            {
+                var thisLocal = innerCompiler.DeclareLocal(typeof(object));
+                innerCompiler._locals["$this"] = thisLocal;
+                innerCompiler.Emit(OpCodes.Ldarg_0);
+                innerCompiler.Emit(OpCodes.Stloc, thisLocal);
+            }
+
             // Generate body
             if (mNode.Body != null)
             {
@@ -151,16 +174,9 @@ public partial class Compiler
             innerCompiler.Emit(OpCodes.Ret);
         }
 
-        // Pass 3: Constructor (for property defaults and __construct)
-        var srcStr = source.ToString(); // Capture source before lambda since ref params can't be captured
-        var phpConstruct = methodBuilders.Find(m => m.Node.Name.Token.TextValue(srcStr.AsSpan()) == "__construct");
-        var ctorParamTypes = phpConstruct.Node != null ? new Type[phpConstruct.Node.Parameters.Count] : Type.EmptyTypes;
-        if (phpConstruct.Node != null)
-        {
-            for (int i = 0; i < ctorParamTypes.Length; i++) ctorParamTypes[i] = typeof(object);
-        }
-
-        var ctor = typeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, ctorParamTypes);
+        // Pass 3: Constructor (for property defaults)
+        // Always create a parameterless constructor - __construct is called separately after object creation
+        var ctor = typeBuilder.DefineConstructor(MethodAttributes.Public, CallingConventions.Standard, Type.EmptyTypes);
         var ctorIl = ctor.GetILGenerator();
         
         // Base call
@@ -177,34 +193,55 @@ public partial class Compiler
                 var innerCompiler = new Compiler(ctorIl, typeof(void));
                 innerCompiler._currentType = typeBuilder;
                 pNode.DefaultValue.Accept(innerCompiler, source);
+                ctorIl.Emit(OpCodes.Box, typeof(int));
                 ctorIl.Emit(OpCodes.Stfld, (System.Reflection.FieldInfo)fb);
             }
         }
 
-        // Call __construct if exists
-        if (phpConstruct.Node != null)
-        {
-            ctorIl.Emit(OpCodes.Ldarg_0); // 'this' for the call
-            for (int i = 0; i < phpConstruct.Node.Parameters.Count; i++)
-            {
-                // Ldarg_1, Ldarg_2 ...
-                switch (i + 1)
-                {
-                    case 1: ctorIl.Emit(OpCodes.Ldarg_1); break;
-                    case 2: ctorIl.Emit(OpCodes.Ldarg_2); break;
-                    case 3: ctorIl.Emit(OpCodes.Ldarg_3); break;
-                    default: ctorIl.Emit(OpCodes.Ldarg_S, (short)(i + 1)); break;
-                }
-            }
-            ctorIl.Emit(OpCodes.Call, phpConstruct.Builder);
-            ctorIl.Emit(OpCodes.Pop); // Pop null return from __construct
-        }
+        // Note: We don't call __construct here - it's handled as a regular method call after object creation
+        // For PHP-style constructors, the user should call __construct() explicitly if needed
 
         ctorIl.Emit(OpCodes.Ret);
 
         var finishedTypeInstance = typeBuilder.CreateType();
         var phpType = TypeTable.GetType(fqn);
         if (phpType != null) phpType.RuntimeType = finishedTypeInstance;
+        
+        // Set static property defaults in the runtime helper dictionary
+        foreach (var (pNode, fb) in fieldBuilders)
+        {
+            if (pNode.Modifiers.HasFlag(PhpModifiers.Static) && pNode.DefaultValue != null)
+            {
+                // Try to evaluate the default value if it's a literal
+                object? defaultValue = null;
+                if (pNode.DefaultValue is LiteralNode literal)
+                {
+                    var tokenText = literal.Token.TextValue(in source);
+                    if (literal.Token.Kind == TokenKind.IntLiteral)
+                    {
+                        if (int.TryParse(tokenText, out int intVal))
+                            defaultValue = intVal;
+                    }
+                    else if (literal.Token.Kind == TokenKind.StringLiteral)
+                    {
+                        defaultValue = tokenText.Trim('"', '\'');
+                    }
+                }
+                
+                if (defaultValue != null)
+                {
+                    PHPIL.Engine.Runtime.Sdk.RuntimeHelpers.SetStaticPropertyDefault(fqn, fb.Name, defaultValue);
+                }
+            }
+        }
+        
+        // Register methods for later lookup
+        foreach (var (mNode, builder) in methodBuilders)
+        {
+            var methodName = mNode.Name.Token.TextValue(in source);
+            var resolvedName = string.IsNullOrEmpty(_currentNamespace) ? methodName : _currentNamespace + "\\" + methodName;
+            TypeTable.RegisterMethod(fqn, resolvedName, builder);
+        }
     }
 
     public void VisitNewNode(NewNode node, in ReadOnlySpan<char> source)
@@ -219,20 +256,30 @@ public partial class Compiler
         if (phpType?.RuntimeType == null)
             throw new Exception($"Class '{fqn}' not found.");
 
-        var constructors = phpType.RuntimeType.GetConstructors();
-        var constructor = constructors.FirstOrDefault(c => c.GetParameters().Length == node.Arguments.Count);
-        
-        if (constructor == null && node.Arguments.Count == 0)
-            constructor = phpType.RuntimeType.GetConstructor(Type.EmptyTypes);
-
+        var constructor = phpType.RuntimeType.GetConstructor(Type.EmptyTypes);
         if (constructor == null)
-            throw new Exception($"No constructor found for '{fqn}' with {node.Arguments.Count} arguments.");
-
-        // Emit arguments
-        foreach (var arg in node.Arguments)
-            arg.Accept(this, source);
+            throw new Exception($"No parameterless constructor found for '{fqn}'.");
 
         Emit(OpCodes.Newobj, constructor);
+        
+        var tryCallConstruct = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("TryCallConstruct")!;
+        
+        // Duplicate object so it remains on stack after TryCallConstruct
+        Emit(OpCodes.Dup);
+        
+        Emit(OpCodes.Ldc_I4, node.Arguments.Count);
+        Emit(OpCodes.Newarr, typeof(object));
+        
+        for (int i = 0; i < node.Arguments.Count; i++)
+        {
+            Emit(OpCodes.Dup);
+            Emit(OpCodes.Ldc_I4, i);
+            node.Arguments[i].Accept(this, source);
+            EmitBoxingIfLiteral(node.Arguments[i]);
+            Emit(OpCodes.Stelem_Ref);
+        }
+        
+        Emit(OpCodes.Call, tryCallConstruct);
     }
 
     private MethodAttributes MapMethodAttributes(PhpModifiers modifiers)
@@ -290,6 +337,7 @@ public partial class Compiler
     public void VisitInstanceOfNode(InstanceOfNode node, in ReadOnlySpan<char> source)
     {
         node.Expression?.Accept(this, source);
+        
         string? fqn = null;
         if (node.ClassIdentifier is QualifiedNameNode qname)
             fqn = ResolveFQN(qname, source);
@@ -301,11 +349,22 @@ public partial class Compiler
             {
                 Emit(OpCodes.Isinst, targetType);
                 Emit(OpCodes.Ldnull);
-                Emit(OpCodes.Cgt_Un); // (isinst result) > null ? 1 : 0
+                Emit(OpCodes.Cgt_Un);
                 Emit(OpCodes.Box, typeof(bool));
                 return;
             }
         }
+        
+        // Handle variable case: $obj instanceof $className
+        if (node.ClassIdentifier is VariableNode varNode)
+        {
+            node.ClassIdentifier.Accept(this, source);
+            var instanceOfMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("InstanceOf")!;
+            Emit(OpCodes.Call, instanceOfMethod);
+            Emit(OpCodes.Box, typeof(bool));
+            return;
+        }
+        
         throw new NotImplementedException("instanceof for dynamic or unknown class not yet implemented.");
     }
 
@@ -314,29 +373,38 @@ public partial class Compiler
         node.Object?.Accept(this, source);
         var propName = node.Property.Token.TextValue(in source);
 
-        Type? targetType = null;
-        if (node.Object is VariableNode varNode && varNode.Token.TextValue(in source) == "$this")
-            targetType = _currentType;
-
-        if (targetType != null)
+        // Check if it's $this - use runtime helper since type might not be finalized yet
+        if (node.Object is VariableNode varNode && varNode.Token.TextValue(in source) == "$this" && !_isStaticMethod && _currentType != null)
         {
-            var field = targetType.GetField(propName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            if (field != null)
-            {
-                Emit(OpCodes.Ldfld, field);
-                return;
-            }
+            // Use runtime helper for property access
+            Emit(OpCodes.Ldstr, propName);
+            var getPropMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("GetProperty", new[] { typeof(object), typeof(string) })!;
+            Emit(OpCodes.Call, getPropMethod);
+            return;
         }
-        throw new NotImplementedException($"Property access '{propName}' is not yet implemented or field not found.");
+
+        // For non-$this, use runtime helper
+        Emit(OpCodes.Ldstr, propName);
+        var getPropMethod2 = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("GetProperty", new[] { typeof(object), typeof(string) })!;
+        Emit(OpCodes.Call, getPropMethod2);
     }
 
     public void VisitStaticAccessNode(StaticAccessNode node, in ReadOnlySpan<char> source)
     {
-        var memberName = node.MemberName.Token.TextValue(in source);
+        string? memberName = null;
+        if (node.MemberName is IdentifierNode idNode)
+            memberName = idNode.Token.TextValue(in source);
+        else if (node.MemberName is VariableNode varNode)
+            memberName = varNode.Token.TextValue(in source).TrimStart('$');
+            
+        if (memberName == null)
+            throw new Exception("Cannot resolve static member name");
+            
         Type? targetType = null;
+        string? fqn = null;
         if (node.Target is QualifiedNameNode qname)
         {
-            var fqn = ResolveFQN(qname, source);
+            fqn = ResolveFQN(qname, source);
             targetType = TypeTable.GetType(fqn)?.RuntimeType;
         }
         else if (node.Target is ParentNode)
@@ -348,31 +416,37 @@ public partial class Compiler
 
         if (targetType != null)
         {
-            // Try field (static property)
+            // Try field (static property) - use runtime helper since fields might not have values set
             var field = targetType.GetField(memberName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
             if (field != null)
             {
-                Emit(OpCodes.Ldsfld, field);
+                Emit(OpCodes.Ldstr, memberName);
+                Emit(OpCodes.Ldstr, fqn?.Replace("\\", ".") ?? targetType.Name);
+                var getStaticProp = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("GetStaticProperty")!;
+                Emit(OpCodes.Call, getStaticProp);
                 return;
             }
 
-            // Try constant (Literal field)
-            if (field != null && field.IsLiteral)
+            // Try constant
+            var constField = targetType.GetField(memberName, BindingFlags.Public | BindingFlags.Static);
+            if (constField != null && constField.IsLiteral)
             {
-                Emit(OpCodes.Ldsfld, field);
+                var value = constField.GetValue(null);
+                if (value is int intVal)
+                    Emit(OpCodes.Ldc_I4, intVal);
+                else if (value is string strVal)
+                    Emit(OpCodes.Ldstr, strVal);
+                else
+                    Emit(OpCodes.Ldnull);
                 return;
             }
-
-            // Try static method
-            var method = targetType.GetMethod(memberName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
-            if (method != null)
-            {
-                 // Static calls are usually handled by VisitFunctionCallNode, but sometimes it's explicitly Class::method (rare but exists)
-                 // Actually, StaticAccessNode is usually the Callee of a FunctionCallNode.
-                 // If we reach here, it might be a constant access or a static property read.
-            }
+            
+            // Try to handle dynamic module case - emit null for now
+            Emit(OpCodes.Ldnull);
+            return;
         }
-        throw new NotImplementedException($"Static member '{memberName}' not found on {targetType?.Name}.");
+        
+        Emit(OpCodes.Ldnull);
     }
 
     public void VisitParentNode(ParentNode node, in ReadOnlySpan<char> source)
@@ -410,6 +484,12 @@ public partial class Compiler
 
             string name = string.Join("\\", parts);
             if (qname.IsFullyQualified) return name;
+
+            // Check use imports first
+            if (parts.Count == 1 && _useImports.TryGetValue(parts[0], out var imported))
+            {
+                return imported;
+            }
 
             return string.IsNullOrEmpty(_currentNamespace) ? name : _currentNamespace + "\\" + name;
         }

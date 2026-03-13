@@ -143,7 +143,16 @@ namespace PHPIL.Engine.Productions
             }
             ctx.Consume(); // }
 
-            result = node;
+            var classNode = new ClassNode
+            {
+                Name = name,
+                Extends = extends,
+                Implements = implements,
+                Members = members,
+                IsAbstract = isAbstract,
+                IsFinal = isFinal
+            };
+            result = classNode;
             return true;
         }
     }

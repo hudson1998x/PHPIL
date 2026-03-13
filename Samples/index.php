@@ -2,9 +2,9 @@
 
 trait MyObject
 {
-    public function getNumber(): int
+    public function getNumber(int $number): int
     {
-        return 5;
+        return $number;
     }    
 }
 
@@ -12,3 +12,7 @@ class Other
 {
     use MyObject;    
 }
+
+$inst = new Other();
+
+print($inst->getNumber(255));
