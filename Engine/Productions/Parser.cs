@@ -147,7 +147,63 @@ namespace PHPIL.Engine.Productions
             if (finalClimber.TryMatch(ref ctx, out var result)) return result;
 
             var t = ctx.Peek();
-            throw new Exception($"Unknown token ({t.Kind}) {t.TextValue(in ctx.Source)}");
+            var errorPos = GetPositionInfo(ref ctx, t);
+            var errorContext = GetErrorContext(ref ctx, t);
+            
+            // Check if we have a recorded failure
+            if (!string.IsNullOrEmpty(ctx.LongestMatchPattern))
+            {
+                throw new SyntaxError(
+                    $"Syntax error in {ctx.LongestMatchPattern}",
+                    errorPos.Line,
+                    errorPos.Column,
+                    t.TextValue(in ctx.Source).ToString(),
+                    ctx.ExpectedToken ?? "unknown",
+                    errorContext
+                );
+            }
+            
+            throw new SyntaxError(
+                $"Unexpected token",
+                errorPos.Line,
+                errorPos.Column,
+                t.TextValue(in ctx.Source).ToString(),
+                t.Kind.ToString(),
+                errorContext
+            );
+        }
+
+        public static (int Line, int Column) GetPositionInfo(ref ParserContext ctx, Token token)
+        {
+            var source = ctx.Source;
+            int line = 1;
+            int col = 1;
+            
+            for (int i = 0; i < token.RangeStart && i < source.Length; i++)
+            {
+                if (source[i] == '\n')
+                {
+                    line++;
+                    col = 1;
+                }
+                else
+                {
+                    col++;
+                }
+            }
+            
+            return (line, col);
+        }
+
+        public static string GetErrorContext(ref ParserContext ctx, Token token)
+        {
+            var start = Math.Max(0, token.RangeStart - 40);
+            var end = Math.Min(ctx.Source.Length, token.RangeStart + 60);
+            var context = ctx.Source.Slice(start, end - start).ToString();
+            
+            // Add marker for the error location
+            var relativePos = token.RangeStart - start;
+            return context + "\n" + new string(' ', relativePos) + "^";
         }
 
         public static SyntaxNode? ParseAtom(ref ParserContext ctx)

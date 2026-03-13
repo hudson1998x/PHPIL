@@ -24,6 +24,10 @@ public class TokenPattern : Pattern
             result = _executor(token);
             return true;
         }
+        
+        // Record failure if token doesn't match
+        var current = ctx.Peek();
+        ctx.RecordFailure(ctx.Position, $"TokenPattern({_expectedKind})", _expectedKind.ToString());
         return false;
     }
 }

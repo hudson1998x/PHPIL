@@ -21,6 +21,14 @@ public class RecursivePattern : Pattern
         // Initialize the real pattern only once on first use
         _cachedPattern ??= _factory();
 		
-        return _cachedPattern.TryMatch(ref ctx, out result);
+        int startPos = ctx.Position;
+        bool matched = _cachedPattern.TryMatch(ref ctx, out result);
+        
+        if (!matched)
+        {
+            ctx.RecordFailure(startPos, "RecursivePattern", "unknown");
+        }
+        
+        return matched;
     }
 }
