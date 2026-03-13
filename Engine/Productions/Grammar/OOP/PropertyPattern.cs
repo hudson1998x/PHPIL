@@ -26,6 +26,19 @@ namespace PHPIL.Engine.Productions
                 Parser.SkipTrivia(ref ctx);
             }
 
+            // Handle typed properties: public int $name or public string $name
+            // Type is optional - if present, consume it
+            if (ctx.Peek().Kind == TokenKind.Identifier)
+            {
+                var typeToken = ctx.Peek();
+                var typeText = typeToken.TextValue(in ctx.Source);
+                if (typeText is "int" or "string" or "float" or "bool" or "array" or "mixed")
+                {
+                    ctx.Consume();
+                    Parser.SkipTrivia(ref ctx);
+                }
+            }
+
             if (ctx.Peek().Kind != TokenKind.Variable)
             {
                 ctx.Restore(start);

@@ -21,5 +21,6 @@ public static partial class SdkInitializer
 
 public static partial class Streams
 {
-    public static void Print(string value) => SdkInitializer.StdoutStream.Write(value);
+    // The .Replace must be replaced for something better. This is a temporary solution.
+    public static void Print(string value) => SdkInitializer.StdoutStream.Write(value.Replace("\\n", "\n"));
 }

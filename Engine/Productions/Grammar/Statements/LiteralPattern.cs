@@ -118,10 +118,15 @@ namespace PHPIL.Engine.Productions.Patterns
                     if (varEnd + 2 < content.Length && content[varEnd] == '-' && content[varEnd + 1] == '>')
                     {
                         int propEnd = Lexer.GetIdentifierEnd(content.AsSpan(), varEnd + 2);
-                        // Property access via "->" is not yet modeled in this interpolation path.
-                        // Fall back to treating the base variable as the interpolated part.
-                        parts.Add(varNode);
-                        i = varEnd;
+                        // Create ObjectAccessNode for property access
+                        var propToken = new Token { Kind = TokenKind.Identifier, RangeStart = token.RangeStart + 1 + varEnd + 2, RangeEnd = token.RangeStart + 1 + propEnd };
+                        var objectAccess = new ObjectAccessNode
+                        {
+                            Object = varNode,
+                            Property = new IdentifierNode { Token = propToken }
+                        };
+                        parts.Add(objectAccess);
+                        i = propEnd;
                         continue;
                     }
 

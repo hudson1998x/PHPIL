@@ -85,5 +85,6 @@ public partial class SemanticVisitor : IVisitor
     {
         node.Object?.Accept(this, source);
         node.Property?.Accept(this, source);
+        node.AnalysedType = AnalysedType.Mixed;
     }
 }

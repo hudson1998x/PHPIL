@@ -1,18 +1,30 @@
-﻿<?php
+<?php
 
-trait MyObject
+class User
 {
-    public function getNumber(int $number): int
+    public int $id;
+    public string $username;
+    
+    public function dump()
     {
-        return $number;
-    }    
+        print("User ( Id: {$this->id}, Username: {$this->username} )\n");
+    }        
 }
 
-class Other
+$usernames = ["john", "morgan", "elijah", "luke","barry", "mitchell", "paul"];
+$ids       = [1     , 2       , 3       , 4     ,5      , 6         , 7];
+
+$built = [];
+
+foreach($usernames as $pos => $uname)
 {
-    use MyObject;    
+    $user = new User();
+    $user->id = $ids[$pos];
+    $user->username = $uname;
+    $built[] = $user;    
 }
 
-$inst = new Other();
-
-print($inst->getNumber(255));
+foreach($built as $user)
+{
+    $user->dump();
+}

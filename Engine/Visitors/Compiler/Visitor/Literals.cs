@@ -2,6 +2,7 @@ using System.Reflection.Emit;
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
+using PHPIL.Engine.SyntaxTree.Structure.OOP;
 
 namespace PHPIL.Engine.Visitors;
 
@@ -34,40 +35,32 @@ public partial class Compiler
             return;
         }
 
-        foreach (var part in node.Parts)
+        // Build an array of strings and concatenate
+        Emit(OpCodes.Ldc_I4, node.Parts.Count);
+        Emit(OpCodes.Newarr, typeof(string));
+        
+        int stackOffset = 0;
+        for (int i = 0; i < node.Parts.Count; i++)
         {
+            // Duplicate array
+            Emit(OpCodes.Dup);
+            // Push index
+            Emit(OpCodes.Ldc_I4, i);
+            
+            // Emit the part
+            var part = node.Parts[i];
             part.Accept(this, source);
-            EmitStringCoercion(part.AnalysedType, isVariable: part is VariableNode);
+            
+            // Handle both VariableNode and ObjectAccessNode (like $this->id) for string coercion
+            bool isVariableOrAccess = part is VariableNode || part is ObjectAccessNode;
+            EmitStringCoercion(part.AnalysedType, isVariable: isVariableOrAccess);
+            
+            // Store in array
+            Emit(OpCodes.Stelem_Ref);
         }
 
-        if (node.Parts.Count > 1)
-        {
-            // string.Concat(string[]) or string.Concat(s1, s2, s3, s4)
-            if (node.Parts.Count <= 4)
-            {
-                var types = Enumerable.Repeat(typeof(string), node.Parts.Count).ToArray();
-                var concat = typeof(string).GetMethod("Concat", types)!;
-                Emit(OpCodes.Call, concat);
-            }
-            else
-            {
-                // Fallback to array version for > 4 parts
-                Emit(OpCodes.Ldc_I4, node.Parts.Count);
-                Emit(OpCodes.Newarr, typeof(string));
-                for (int i = node.Parts.Count - 1; i >= 0; i--)
-                {
-                    Emit(OpCodes.Dup);
-                    Emit(OpCodes.Ldc_I4, i);
-                    // This is slightly tricky because the values are already on stack.
-                    // A better way for > 4 parts would be to push them into an array as we go.
-                    // But for simple interpolation, < 4 is common.
-                    // Let's optimize for <= 4 and use a simpler approach for > 4 if needed.
-                    // For now, let's just use Concat(string, string) repeatedly if > 4.
-                }
-                
-                // Redo if > 4:
-                // Actually, string.Concat(s1, s2) is easiest to chain.
-            }
-        }
+        // Call string.Concat(string[])
+        var concatMethod = typeof(string).GetMethod("Concat", new[] { typeof(string[]) })!;
+        Emit(OpCodes.Call, concatMethod);
     }
 }
