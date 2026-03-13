@@ -6,5 +6,6 @@ public static partial class SdkInitializer
     {
         InitStreams();
         InitSeeds();
+        InitIncludeRequire();
     }
 }
