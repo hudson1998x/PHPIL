@@ -25,11 +25,26 @@ public partial class Compiler
             return _moduleBuilder;
         }
     }
+    
+    public static void ResetModule()
+    {
+        _assemblyBuilder = null;
+        _moduleBuilder = null;
+    }
 
     public void VisitClassNode(ClassNode node, in ReadOnlySpan<char> source)
     {
         var fqn = ResolveFQN(node.Name, source);
-        var typeBuilder = ModuleBuilder.DefineType(fqn.Replace("\\", "."), TypeAttributes.Public | TypeAttributes.Class);
+        var typeName = fqn.Replace("\\", ".");
+        
+        // Check if type already exists - if so, skip redefinition
+        var existingPhpType = TypeTable.GetType(fqn);
+        if (existingPhpType?.RuntimeType != null)
+        {
+            return;
+        }
+        
+        var typeBuilder = ModuleBuilder.DefineType(typeName, TypeAttributes.Public | TypeAttributes.Class);
 
         // Handle inheritance
         if (node.Extends != null)

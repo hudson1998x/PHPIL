@@ -1,5 +1,6 @@
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.Visitors;
 
 namespace PHPIL.Tests;
 
@@ -50,5 +51,11 @@ public abstract class BaseTest
             return id.Token.TextValue(in span);
         }
         return "";
+    }
+    
+    protected void ResetTestState()
+    {
+        TypeTable.Clear();
+        Compiler.ResetModule();
     }
 }

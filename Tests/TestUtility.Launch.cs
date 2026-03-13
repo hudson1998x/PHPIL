@@ -2,6 +2,7 @@ using PHPIL.Tests.Engine;
 using PHPIL.Tests.Engine.Execution;
 using PHPIL.Tests.Engine.Execution.Arrays;
 using PHPIL.Tests.Engine.Execution.Functions;
+using PHPIL.Tests.Engine.Execution.Loops;
 
 namespace PHPIL.Tests;
 
@@ -43,6 +44,7 @@ public partial class TestUtility
         utility.Run<StringInterpolationTests>();
         utility.Run<NamespaceTests>();
         utility.Run<OOPExecutionTests>();
+        utility.Run<ForeachExecutionTests>();
         
         utility.PrintSummary();
 

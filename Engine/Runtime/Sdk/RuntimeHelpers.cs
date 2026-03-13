@@ -81,7 +81,6 @@ public static class RuntimeHelpers
 
     public static void SetProperty(object? obj, string propertyName, object? value)
     {
-        Console.WriteLine($"SetProperty CALLED: obj={obj?.GetType()}, property={propertyName}, value={value}");
         if (obj == null) throw new Exception("Cannot set property on null");
         
         var type = obj.GetType();
@@ -89,7 +88,6 @@ public static class RuntimeHelpers
         
         if (field != null)
         {
-            Console.WriteLine($"DEBUG SetProperty: setting {propertyName} = {value} (type={value?.GetType()})");
             field.SetValue(obj, value);
             return;
         }

@@ -15,7 +15,10 @@ public partial class SemanticVisitor : IVisitor
     
     public void VisitForeachNode(ForeachNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        node.Iterable?.Accept(this, source);
+        node.Value?.Accept(this, source);
+        node.Key?.Accept(this, source);
+        node.Body?.Accept(this, source);
     }
 
     public void VisitAnonymousFunctionNode(AnonymousFunctionNode node, in ReadOnlySpan<char> source)

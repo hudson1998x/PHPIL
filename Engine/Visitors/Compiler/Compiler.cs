@@ -1,6 +1,5 @@
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
-using PHPIL.Engine.SyntaxTree.Structure.Loops;
 
 namespace PHPIL.Engine.Visitors;
 
@@ -49,11 +48,6 @@ public partial class Compiler : IVisitor
         throw new NotImplementedException();
     }
 
-    
-    public void VisitForeachNode(ForeachNode node, in ReadOnlySpan<char> source)
-    {
-        throw new NotImplementedException();
-    }
 
     public void VisitAnonymousFunctionNode(AnonymousFunctionNode node, in ReadOnlySpan<char> source)
     {

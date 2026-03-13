@@ -35,4 +35,10 @@ public static class TypeTable
         }
         return null;
     }
+    
+    public static void Clear()
+    {
+        Types.Clear();
+        Methods.Clear();
+    }
 }
