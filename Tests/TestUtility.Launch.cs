@@ -39,6 +39,7 @@ public partial class TestUtility
         // =============================
         utility.Run<FunctionDeclarationExecutionTests>();
         utility.Run<FunctionCallsExecutionTests>();
+        utility.Run<AnonymousFunctionsTests>();
         utility.Run<ArrayExecutionTests>();
         utility.Run<OperatorExecutionTests>();
         utility.Run<StringInterpolationTests>();

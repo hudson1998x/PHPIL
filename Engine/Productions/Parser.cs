@@ -250,6 +250,13 @@ namespace PHPIL.Engine.Productions
                 return new ParentNode();
             }
 
+            // 2d. ANONYMOUS FUNCTION (in expression context)
+            if (token.Kind == TokenKind.Function)
+            {
+                if (Grammar.AnonymousFunction().TryMatch(ref ctx, out var anon))
+                    return anon;
+            }
+
             // 3. LITERALS
             if (token.Kind is TokenKind.IntLiteral 
                           or TokenKind.StringLiteral 
