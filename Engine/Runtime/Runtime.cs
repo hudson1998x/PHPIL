@@ -59,13 +59,16 @@ public static class Runtime
         // {
         //     token.ToJson(in fileContent, builder);
         // }
-        // builder.AppendLine("]");
+        // builder.AppendLine("]")
         //
         // Console.WriteLine(builder.ToString());
         
         var span = (ReadOnlySpan<Token>) tokens.AsSpan();
         var ast = Parser.Parse(in tokens, in fileContent);
         
+        // ast?.ToJson(in fileContent, in span, builder);
+        // Console.WriteLine(builder.ToString());
+
         var visitors = new Visitor(
             new SemanticVisitor()
         );

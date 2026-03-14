@@ -43,9 +43,9 @@ namespace PHPIL.Engine.Productions
             return root;
         }
 
-        public static SyntaxNode? ParseSingle(ref ParserContext ctx)
-        {
-            SkipTrivia(ref ctx);
+    public static SyntaxNode? ParseSingle(ref ParserContext ctx)
+    {
+        SkipTrivia(ref ctx);
             if (ctx.IsAtEnd) return null;
 
             switch (ctx.Peek().Kind)
@@ -87,6 +87,10 @@ namespace PHPIL.Engine.Productions
             
                 case TokenKind.While:
                     if (Grammar.WhileExpression().TryMatch(ref ctx, out var whileNode)) return whileNode;
+                    break;
+                
+                case TokenKind.Switch:
+                    if (Grammar.Switch().TryMatch(ref ctx, out var switchNode)) return switchNode;
                     break;
             
                 case TokenKind.For:

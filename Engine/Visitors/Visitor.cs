@@ -180,6 +180,16 @@ public class Visitor : IVisitor
         foreach (var visitor in _visitors) visitor.VisitForeachNode(node, in source);
     }
 
+    public void VisitSwitchNode(SwitchNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitSwitchNode(node, in source);
+    }
+
+    public void VisitCaseNode(CaseNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitCaseNode(node, in source);
+    }
+
     public void VisitInterpolatedStringNode(InterpolatedStringNode node, in ReadOnlySpan<char> source)
     {
         foreach (var visitor in _visitors) visitor.VisitInterpolatedStringNode(node, in source);

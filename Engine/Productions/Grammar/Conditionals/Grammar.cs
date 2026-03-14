@@ -8,4 +8,9 @@ public static partial class Grammar
     {
         return new IfExpressionPattern();
     }
+
+    public static SwitchExpressionPattern Switch()
+    {
+        return new SwitchExpressionPattern();
+    }
 }

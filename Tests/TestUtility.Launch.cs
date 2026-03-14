@@ -46,6 +46,7 @@ public partial class TestUtility
         utility.Run<NamespaceTests>();
         utility.Run<OOPExecutionTests>();
         utility.Run<ForeachExecutionTests>();
+        utility.Run<SwitchExecutionTests>();
         utility.Run<SyntaxTests>();
         
         utility.PrintSummary();
