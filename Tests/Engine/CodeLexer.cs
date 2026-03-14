@@ -90,7 +90,7 @@ public class CodeLexerTests : BaseTest
 			TokenKind.Identifier, // print
 			TokenKind.Identifier, // echo
 			TokenKind.Identifier, // include
-			TokenKind.Identifier, // require
+			TokenKind.Require, // require
 			TokenKind.Die // die
 		};
 		AssertEqual(expected, kinds);

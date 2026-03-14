@@ -137,6 +137,12 @@ namespace PHPIL.Engine.Productions
                 {
                     // Fallback or error? For now, if we can't match anything, it's a parse error or unknown token
                     var t = ctx.Peek();
+                    // Check if this is a property - it might have already been consumed
+                    if (t.Kind == TokenKind.Private || t.Kind == TokenKind.Public || t.Kind == TokenKind.Protected || t.Kind == TokenKind.Static)
+                    {
+                        // Try to match property again with more debug info
+                        throw new Exception($"Unexpected token in class body: {t.Kind} at {t.Start}. This might be a property that wasn't matched.");
+                    }
                     throw new Exception($"Unexpected token in class body: {t.Kind} at {t.Start}");
                 }
                 Parser.SkipTrivia(ref ctx);

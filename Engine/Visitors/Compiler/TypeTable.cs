@@ -28,6 +28,10 @@ public static class TypeTable
     {
         if (Types.TryGetValue(name, out var type)) return type;
         
+        // Don't try to autoload "self" - it should be resolved by context
+        if (name.Equals("self", StringComparison.OrdinalIgnoreCase))
+            return null;
+        
         // Try autoload
         if (Runtime.Runtime.Autoload(name))
         {

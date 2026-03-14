@@ -447,7 +447,17 @@ public partial class Compiler
         if (node.Target is QualifiedNameNode qname)
         {
             fqn = ResolveFQN(qname, source);
-            targetType = TypeTable.GetType(fqn)?.RuntimeType;
+            // Special handling for "self" - resolve to current class
+            if (fqn.Equals("self", StringComparison.OrdinalIgnoreCase))
+            {
+                if (_currentType == null)
+                    throw new Exception("'self' used outside of class context.");
+                targetType = _currentType;
+            }
+            else
+            {
+                targetType = TypeTable.GetType(fqn)?.RuntimeType;
+            }
         }
         else if (node.Target is ParentNode)
         {
@@ -458,29 +468,43 @@ public partial class Compiler
 
         if (targetType != null)
         {
-            // Try field (static property) - use runtime helper since fields might not have values set
-            var field = targetType.GetField(memberName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
-            if (field != null)
+            // Try field (static property)
+            try
             {
-                Emit(OpCodes.Ldstr, memberName);
-                Emit(OpCodes.Ldstr, fqn?.Replace("\\", ".") ?? targetType.Name);
-                var getStaticProp = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("GetStaticProperty")!;
-                Emit(OpCodes.Call, getStaticProp);
-                return;
+                var field = targetType.GetField(memberName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    Emit(OpCodes.Ldstr, memberName);
+                    Emit(OpCodes.Ldstr, fqn?.Replace("\\", ".") ?? targetType.Name);
+                    var getStaticProp = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("GetStaticProperty")!;
+                    Emit(OpCodes.Call, getStaticProp);
+                    return;
+                }
+            }
+            catch (NotSupportedException)
+            {
+                // Type not fully created yet - use runtime helper
             }
 
             // Try constant
-            var constField = targetType.GetField(memberName, BindingFlags.Public | BindingFlags.Static);
-            if (constField != null && constField.IsLiteral)
+            try
             {
-                var value = constField.GetValue(null);
-                if (value is int intVal)
-                    Emit(OpCodes.Ldc_I4, intVal);
-                else if (value is string strVal)
-                    Emit(OpCodes.Ldstr, strVal);
-                else
-                    Emit(OpCodes.Ldnull);
-                return;
+                var constField = targetType.GetField(memberName, BindingFlags.Public | BindingFlags.Static);
+                if (constField != null && constField.IsLiteral)
+                {
+                    var value = constField.GetValue(null);
+                    if (value is int intVal)
+                        Emit(OpCodes.Ldc_I4, intVal);
+                    else if (value is string strVal)
+                        Emit(OpCodes.Ldstr, strVal);
+                    else
+                        Emit(OpCodes.Ldnull);
+                    return;
+                }
+            }
+            catch (NotSupportedException)
+            {
+                // Type not fully created yet - skip
             }
             
             // Try to handle dynamic module case - emit null for now
@@ -526,6 +550,12 @@ public partial class Compiler
 
             string name = string.Join("\\", parts);
             if (qname.IsFullyQualified) return name;
+
+            // Special handling for "self" - don't qualify it with namespace
+            if (parts.Count == 1 && parts[0].Equals("self", StringComparison.OrdinalIgnoreCase))
+            {
+                return parts[0];
+            }
 
             // Check use imports first
             if (parts.Count == 1 && _useImports.TryGetValue(parts[0], out var imported))

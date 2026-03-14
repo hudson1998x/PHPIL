@@ -254,17 +254,41 @@ public partial class Compiler
             if (staticAccess.Target is QualifiedNameNode qname)
             {
                 var fqn = ResolveFQN(qname, source);
-                targetType = TypeTable.GetType(fqn)?.RuntimeType;
+                // Special handling for "self" - resolve to current class
+                if (fqn.Equals("self", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (_currentType == null)
+                        throw new Exception("'self' used outside of class context.");
+                    targetType = _currentType;
+                }
+                else
+                {
+                    targetType = TypeTable.GetType(fqn)?.RuntimeType;
+                }
             }
 
             if (targetType != null)
             {
-                var field = targetType.GetField(memberName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
-                if (field != null)
+                try
                 {
-                    Emit(OpCodes.Stsfld, (System.Reflection.FieldInfo)field);
-                    return;
+                    var field = targetType.GetField(memberName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
+                    if (field != null)
+                    {
+                        Emit(OpCodes.Stsfld, (System.Reflection.FieldInfo)field);
+                        return;
+                    }
                 }
+                catch (NotSupportedException)
+                {
+                    // Type not fully created yet - use runtime helper
+                }
+                
+                // Use runtime helper for types not fully created
+                var setStaticFieldMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("SetStaticFieldByName", new[] { typeof(string), typeof(string), typeof(object) })!;
+                Emit(OpCodes.Ldstr, targetType.Name);
+                Emit(OpCodes.Ldstr, memberName);
+                Emit(OpCodes.Call, setStaticFieldMethod);
+                return;
             }
             throw new NotImplementedException($"Static property write '{memberName}' not found.");
         }

@@ -2,4 +2,10 @@
 
 require_once('Samples/app/autoload.php');
 
-$user = new System\User();
+Eventing\Events::On("trigger", function(array $items) {
+    print("Received items");
+});
+
+Eventing\Events::Dispatch('trigger', []);
+
+print('it doesn\'t print');
