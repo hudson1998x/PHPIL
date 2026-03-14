@@ -12,10 +12,21 @@ public partial class Compiler
         {
             stmt.Accept(this, in source);
 
+            if (stmt is BreakNode || stmt is ContinueNode)
+            {
+                return;
+            }
+
             if (stmt is ExpressionNode expr)
             {
                 bool shouldPop = true;
-                if (expr is BinaryOpNode bin && IsAssignment(bin.Operator) && !bin.NeedsValue)
+                
+                // Control flow statements don't have return values
+                if (expr is For || expr is WhileNode || expr is SwitchNode || expr is IfNode)
+                {
+                    shouldPop = false;
+                }
+                else if (expr is BinaryOpNode bin && IsAssignment(bin.Operator) && !bin.NeedsValue)
                 {
                     shouldPop = false;
                 }
@@ -34,11 +45,6 @@ public partial class Compiler
                 
                 if (shouldPop)
                     Emit(OpCodes.Pop);
-            }
-
-            if (stmt is BreakNode breakNode)
-            {
-                return;
             }
         }
     }

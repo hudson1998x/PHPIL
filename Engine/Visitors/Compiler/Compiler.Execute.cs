@@ -14,13 +14,7 @@ public partial class Compiler
         }
         catch (Exception ex)
         {
-            // Console.WriteLine();
-            // Console.WriteLine("================= EXCEPTION ================");
-            // Console.WriteLine(ex);
-            // Console.WriteLine("================= /EXCEPTION ===============");
-            // Console.WriteLine("================= IL INSPECTOR ================");
-            // Console.WriteLine(_ilLog?.ToString());
-            // Console.WriteLine("================= / IL INSPECTOR ================");
+            // Silently ignore - tests may check for exceptions
         }
     }
 }

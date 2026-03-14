@@ -38,6 +38,7 @@ public partial class Compiler
     }
 
     public DynamicMethod? GetDynamicMethod() => _method;
+    public string GetILLog() => _ilLog?.ToString() ?? "";
 
     private ILGenerator GetIl()
     {
