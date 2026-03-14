@@ -121,6 +121,16 @@ namespace PHPIL.Engine.Productions
                 case TokenKind.Not:
                 case TokenKind.Increment:
                 case TokenKind.Decrement:
+                case TokenKind.Die:
+                case TokenKind.Print:
+                case TokenKind.Echo:
+                case TokenKind.Include:
+                case TokenKind.IncludeOnce:
+                case TokenKind.Require:
+                case TokenKind.RequireOnce:
+                case TokenKind.Unset:
+                case TokenKind.List:
+                case TokenKind.Array:
                 {
                     var climber = new InnerExpressionPattern(0);
                     if (climber.TryMatch(ref ctx, out var expr)) return expr;
@@ -213,8 +223,16 @@ namespace PHPIL.Engine.Productions
 
             var token = ctx.Peek();
 
-            // 1. IDENTIFIERS & FUNCTION CALLS
-            if (token.Kind == TokenKind.Identifier || token.Kind == TokenKind.NamespaceSeparator)
+            // 1. IDENTIFIERS & FUNCTION CALLS & FUNCTION-LIKE KEYWORDS
+            if (token.Kind == TokenKind.Identifier 
+                || token.Kind == TokenKind.NamespaceSeparator
+                || token.Kind == TokenKind.Die
+                || token.Kind == TokenKind.Print
+                || token.Kind == TokenKind.Echo
+                || token.Kind == TokenKind.Include
+                || token.Kind == TokenKind.IncludeOnce
+                || token.Kind == TokenKind.Require
+                || token.Kind == TokenKind.RequireOnce)
             {
                 // Always try to parse a function call first
                 if (Grammar.FunctionCall().TryMatch(ref ctx, out var callNode))

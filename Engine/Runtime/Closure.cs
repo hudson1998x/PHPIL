@@ -3,9 +3,6 @@ using PHPIL.Engine.Visitors;
 
 namespace PHPIL.Engine.Runtime
 {
-    /// <summary>
-    /// Represents a callable closure (anonymous function).
-    /// </summary>
     public class Closure
     {
         private readonly string _functionName;
@@ -22,7 +19,19 @@ namespace PHPIL.Engine.Runtime
             {
                 throw new InvalidOperationException($"Closure function '{_functionName}' not found");
             }
-            return func.Method.DynamicInvoke(args);
+            
+            if (args.Length == 1)
+            {
+                return func.Method.DynamicInvoke(args[0]);
+            }
+            else if (args.Length == 0)
+            {
+                return func.Method.DynamicInvoke(null);
+            }
+            else
+            {
+                return func.Method.DynamicInvoke(args);
+            }
         }
     }
 }

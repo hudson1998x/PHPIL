@@ -1,21 +1,15 @@
-using PHPIL.Engine.Visitors;
-
 namespace PHPIL.Engine.Runtime.Sdk;
 
 public static partial class SdkInitializer
 {
     internal static readonly MemoryStream StdoutMemory = new();
     internal static readonly StreamWriter StdoutStream = new(StdoutMemory);
-    
-    static void Print()
+
+    static void InitStreams()
     {
-        FunctionTable.RegisterFunction(new PhpFunction()
-        {
-            Name = "print",
-            ParameterTypes = [typeof(object)],
-            MethodInfo = typeof(Streams).GetMethod(nameof(Streams.Print)),
-            Method = Streams.Print
-        });
+        Sdk.Function("print")
+            .Takes<object>()
+            .Calls(Streams.Print);
     }
 }
 

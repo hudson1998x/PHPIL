@@ -3,6 +3,7 @@ using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.SyntaxTree.Structure.OOP;
+using PHPIL.Engine.Runtime;
 
 namespace PHPIL.Engine.Visitors;
 
@@ -33,6 +34,15 @@ public partial class Compiler
         Emit(OpCodes.Call, method);
     }
 
+    private PhpFunction? TryAutoloadFunction(string name)
+    {
+        if (Runtime.Runtime.AutoloadFunction(name))
+        {
+            return FunctionTable.GetFunction(name);
+        }
+        return null;
+    }
+
     private PhpFunction? ResolveFunction(ExpressionNode? callee, in ReadOnlySpan<char> source)
     {
         if (callee is IdentifierNode identifierNode)
@@ -43,6 +53,12 @@ public partial class Compiler
             if (phpFunc == null && !string.IsNullOrEmpty(_currentNamespace))
             {
                 phpFunc = FunctionTable.GetFunction(name);
+            }
+            
+            // Try autoload if not found
+            if (phpFunc == null)
+            {
+                phpFunc = TryAutoloadFunction(name);
             }
             return phpFunc;
         }
@@ -73,6 +89,12 @@ public partial class Compiler
             if (phpFunc == null && !qnameNode.IsFullyQualified && fqnParts.Count == 1 && !string.IsNullOrEmpty(_currentNamespace))
             {
                 phpFunc = FunctionTable.GetFunction(fqnParts[0]); // Global fallback for single part
+            }
+            
+            // Try autoload if not found
+            if (phpFunc == null)
+            {
+                phpFunc = TryAutoloadFunction(fqn);
             }
             return phpFunc;
         }

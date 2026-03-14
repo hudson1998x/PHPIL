@@ -1,4 +1,4 @@
-﻿namespace PHPIL.Engine.Runtime.Sdk;
+namespace PHPIL.Engine.Runtime.Sdk;
 
 public static partial class SdkInitializer
 {
@@ -7,5 +7,7 @@ public static partial class SdkInitializer
         InitStreams();
         InitSeeds();
         InitIncludeRequire();
+        InitAutoload();
+        InitStrings();
     }
 }

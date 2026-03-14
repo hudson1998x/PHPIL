@@ -7,6 +7,20 @@ namespace PHPIL.Engine.Productions.Patterns;
 
 public class QualifiedNamePattern : Pattern
 {
+    private static readonly HashSet<TokenKind> FunctionKeywords =
+    [
+        TokenKind.Die,
+        TokenKind.Print,
+        TokenKind.Echo,
+        TokenKind.Include,
+        TokenKind.IncludeOnce,
+        TokenKind.Require,
+        TokenKind.RequireOnce,
+        TokenKind.Unset,
+        TokenKind.List,
+        TokenKind.Array,
+    ];
+
     public override bool TryMatch(ref ParserContext ctx, out SyntaxNode? result)
     {
         int start = ctx.Save();
@@ -20,12 +34,11 @@ public class QualifiedNamePattern : Pattern
             ctx.Consume();
         }
 
-        if (ctx.Peek().Kind != TokenKind.Identifier)
+        var currentKind = ctx.Peek().Kind;
+        if (currentKind != TokenKind.Identifier && !FunctionKeywords.Contains(currentKind))
         {
             if (isFullyQualified)
             {
-                // Just a backslash is not a valid qualified name in most contexts
-                // but let's be strict here.
                 ctx.Restore(start);
                 return false;
             }
@@ -36,8 +49,9 @@ public class QualifiedNamePattern : Pattern
 
         while (!ctx.IsAtEnd && ctx.Peek(0).Kind == TokenKind.NamespaceSeparator)
         {
-            // Look ahead to ensure the separator is followed by an identifier
-            if (ctx.Peek(1).Kind != TokenKind.Identifier) break;
+            // Look ahead to ensure the separator is followed by an identifier or function keyword
+            var nextKind = ctx.Peek(1).Kind;
+            if (nextKind != TokenKind.Identifier && !FunctionKeywords.Contains(nextKind)) break;
 
             ctx.Consume(); // consume separator
             parts.Add(ctx.Consume()); // consume identifier

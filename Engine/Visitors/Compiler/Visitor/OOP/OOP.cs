@@ -263,16 +263,37 @@ public partial class Compiler
         if (fqn == null) throw new Exception("Could not resolve class for 'new'");
 
         var phpType = TypeTable.GetType(fqn);
-        if (phpType?.RuntimeType == null)
-            throw new Exception($"Class '{fqn}' not found.");
+        
+        var tryCallConstructMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("TryCallConstruct")!;
 
-        var constructor = phpType.RuntimeType.GetConstructor(Type.EmptyTypes);
-        if (constructor == null)
+        if (phpType?.RuntimeType == null)
+        {
+            Emit(OpCodes.Ldstr, fqn);
+            var resolveAndCreateMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("ResolveAndCreate")!;
+            Emit(OpCodes.Call, resolveAndCreateMethod);
+            
+            Emit(OpCodes.Dup);
+            Emit(OpCodes.Ldc_I4, node.Arguments.Count);
+            Emit(OpCodes.Newarr, typeof(object));
+            
+            for (int i = 0; i < node.Arguments.Count; i++)
+            {
+                Emit(OpCodes.Dup);
+                Emit(OpCodes.Ldc_I4, i);
+                node.Arguments[i].Accept(this, source);
+                EmitBoxingIfLiteral(node.Arguments[i]);
+                Emit(OpCodes.Stelem_Ref);
+            }
+            
+            Emit(OpCodes.Call, tryCallConstructMethod);
+            return;
+        }
+
+        var constructorInfo = phpType.RuntimeType.GetConstructor(Type.EmptyTypes);
+        if (constructorInfo == null)
             throw new Exception($"No parameterless constructor found for '{fqn}'.");
 
-        Emit(OpCodes.Newobj, constructor);
-        
-        var tryCallConstruct = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("TryCallConstruct")!;
+        Emit(OpCodes.Newobj, constructorInfo);
         
         // Duplicate object so it remains on stack after TryCallConstruct
         Emit(OpCodes.Dup);
@@ -290,7 +311,7 @@ public partial class Compiler
             Emit(OpCodes.Stelem_Ref);
         }
         
-        Emit(OpCodes.Call, tryCallConstruct);
+        Emit(OpCodes.Call, tryCallConstructMethod);
     }
 
     private MethodAttributes MapMethodAttributes(PhpModifiers modifiers)

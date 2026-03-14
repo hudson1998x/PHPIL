@@ -30,6 +30,16 @@ public static class Runtime
         }
         return false;
     }
+
+    public static bool AutoloadFunction(string functionName)
+    {
+        foreach (var autoloader in _autoloaders)
+        {
+            autoloader.DynamicInvoke(functionName);
+            if (FunctionTable.GetFunction(functionName) != null) return true;
+        }
+        return false;
+    }
     
     public static void ExecuteFile(string filePath)
     {
@@ -68,7 +78,13 @@ public static class Runtime
         var compiler = new Compiler();
         ast?.Accept(compiler, in fileContent);
 
-        compiler.Execute();
+        try
+        {
+            compiler.Execute();
+        }
+        catch (DieException)
+        {
+        }
     }
 
     public static string GetExecutionResult()

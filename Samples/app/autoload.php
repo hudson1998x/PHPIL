@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 spl_autoload_register(function(string $className) {
     
@@ -6,6 +6,6 @@ spl_autoload_register(function(string $className) {
     $path .= str_replace('\\', '/', $className);
     $path .= '.php';
     
-    require_once($path);
-    
+    print($path);
+    die("");
 });

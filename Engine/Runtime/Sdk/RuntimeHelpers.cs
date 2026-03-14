@@ -151,6 +151,17 @@ public static class RuntimeHelpers
             }
         }
     }
+
+    public static object ResolveAndCreate(string className)
+    {
+        var phpType = Visitors.TypeTable.GetType(className);
+        if (phpType?.RuntimeType == null)
+            throw new Exception($"Class '{className}' not found.");
+        var constructor = phpType.RuntimeType.GetConstructor(Type.EmptyTypes);
+        if (constructor == null)
+            throw new Exception($"No parameterless constructor found for '{className}'.");
+        return constructor.Invoke(null);
+    }
     
     private static readonly Dictionary<(string Type, string Property), object?> _staticPropertyDefaults = new();
     
