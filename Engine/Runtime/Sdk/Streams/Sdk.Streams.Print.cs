@@ -12,7 +12,7 @@ public static partial class SdkInitializer
         FunctionTable.RegisterFunction(new PhpFunction()
         {
             Name = "print",
-            ParameterTypes = [typeof(string)],
+            ParameterTypes = [typeof(object)],
             MethodInfo = typeof(Streams).GetMethod(nameof(Streams.Print)),
             Method = Streams.Print
         });
@@ -21,6 +21,14 @@ public static partial class SdkInitializer
 
 public static partial class Streams
 {
-    // The .Replace must be replaced for something better. This is a temporary solution.
-    public static void Print(string value) => SdkInitializer.StdoutStream.Write(value.Replace("\\n", "\n"));
+    public static void Print(object value)
+    {
+        string str = value switch
+        {
+            bool b => b ? "1" : "",
+            null => "",
+            _ => value.ToString()?.Replace("\\n", "\n") ?? ""
+        };
+        SdkInitializer.StdoutStream.Write(str);
+    }
 }

@@ -9,14 +9,30 @@ public class FunctionCallPattern : Pattern
     public override bool TryMatch(ref ParserContext ctx, out SyntaxNode? result)
     {
         int start = ctx.Save();
+        ExpressionNode? callee = null;
 
-        // 1. Must start with a Qualified Name (or just a single identifier)
-        if (!Grammar.QualifiedName().TryMatch(ref ctx, out var calleeNode))
+        // 1. Try to match a QualifiedName (for named function calls)
+        if (Grammar.QualifiedName().TryMatch(ref ctx, out var qnameNode))
         {
+            callee = qnameNode as ExpressionNode;
+        }
+        // 2. Try to match a Variable (for closure calls like $handle(...))
+        else if (ctx.Peek().Kind == TokenKind.Variable)
+        {
+            // Parse the variable
+            if (Grammar.Variable().TryMatch(ref ctx, out var varNode))
+            {
+                callee = varNode as ExpressionNode;
+            }
+        }
+
+        // If neither matched, this is not a function call
+        if (callee == null)
+        {
+            ctx.Restore(start);
             result = null;
             return false;
         }
-        var callee = calleeNode as ExpressionNode;
 
         Parser.SkipTrivia(ref ctx);
 

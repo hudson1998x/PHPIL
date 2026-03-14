@@ -1,18 +1,32 @@
-using System.Reflection.Emit;
+using System;
+using System.Collections.Generic;
 
-namespace PHPIL.Engine.Visitors;
-
-public static class FunctionTable
+namespace PHPIL.Engine.Visitors
 {
-    private static readonly Dictionary<string, PhpFunction> Functions = [];
-
-    public static void RegisterFunction(PhpFunction function)
+    public static class FunctionTable
     {
-        Functions[function.Name!] = function;
-    }
+        private static readonly Dictionary<string, PhpFunction> Functions = [];
+        private static int _anonymousId = 0;
 
-    public static PhpFunction? GetFunction(string name)
-    {
-        return Functions.TryGetValue(name, out PhpFunction? function) ? function: null;
+        public static void RegisterFunction(PhpFunction function)
+        {
+            Functions[function.Name!] = function;
+        }
+
+        public static string GetNextAnonymousId()
+        {
+            return (_anonymousId++).ToString();
+        }
+
+        public static PhpFunction? GetFunction(string name)
+        {
+            return Functions.TryGetValue(name, out PhpFunction? function) ? function : null;
+        }
+
+        public static void Reset()
+        {
+            Functions.Clear();
+            _anonymousId = 0;
+        }
     }
 }

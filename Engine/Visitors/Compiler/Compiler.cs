@@ -56,21 +56,18 @@ public partial class Compiler : IVisitor
 
     public void VisitAnonymousFunctionNode(AnonymousFunctionNode node, in ReadOnlySpan<char> source)
     {
-        // Determine parameter types
+        var functionName = "anonymous_func_" + FunctionTable.GetNextAnonymousId();
+        
         var parameterTypes = new Type[node.Params.Count];
         for (int i = 0; i < node.Params.Count; i++)
         {
-            // For now, all parameters are object (mixed)
-            parameterTypes[i] = typeof(object);
-            // TODO: handle type hints from node.Params[i].TypeHint if any
+            parameterTypes[i] = typeof(object); // Default to mixed for now
         }
 
-        // Determine return type
         var returnType = typeof(object); // Default to mixed for now
         if (node.ReturnType != null)
         {
-            var typeName = node.ReturnType.Value.TextValue(in source);
-            returnType = typeName switch
+            returnType = node.ReturnType.Value.TextValue(in source) switch
             {
                 "int" => typeof(int),
                 "float" or "double" => typeof(double),
@@ -81,21 +78,19 @@ public partial class Compiler : IVisitor
             };
         }
 
-        // Create inner compiler for the function body
-        var methodName = "phpil_anon_" + Guid.NewGuid().ToString("N");
-        var innerCompiler = new Compiler(methodName, returnType, parameterTypes);
+        var innerCompiler = new Compiler(functionName, returnType, parameterTypes);
         innerCompiler._currentNamespace = _currentNamespace;
         foreach (var import in _useImports)
             innerCompiler._useImports[import.Key] = import.Value;
 
-        // Load parameters into locals (so the body can access them by name)
+        // Load parameters into locals
         for (int i = 0; i < node.Params.Count; i++)
         {
             var paramName = node.Params[i].Name.TextValue(in source);
             var local = innerCompiler.DeclareLocal(parameterTypes[i]);
             innerCompiler._locals[paramName] = local;
 
-            // Emit Ldarg_i and store to local
+            // Emit Ldarg_i
             switch (i)
             {
                 case 0: innerCompiler.Emit(OpCodes.Ldarg_0); break;
@@ -104,6 +99,7 @@ public partial class Compiler : IVisitor
                 case 3: innerCompiler.Emit(OpCodes.Ldarg_3); break;
                 default: innerCompiler.Emit(OpCodes.Ldarg_S, (short)i); break;
             }
+
             innerCompiler.Emit(OpCodes.Stloc, local);
         }
 
@@ -120,65 +116,55 @@ public partial class Compiler : IVisitor
         }
         innerCompiler.Emit(OpCodes.Ret);
 
-        // Get the dynamic method
+        // Get the dynamic method and create delegate
         var dynamicMethod = innerCompiler.GetDynamicMethod();
         if (dynamicMethod == null)
         {
             throw new InvalidOperationException("Failed to create dynamic method for anonymous function");
         }
 
-        // Create delegate type
+        // Build delegate type
         Type delegateType;
         if (returnType == typeof(void))
         {
-            if (parameterTypes.Length == 0)
-                delegateType = typeof(Action);
-            else if (parameterTypes.Length == 1)
-                delegateType = typeof(Action<>).MakeGenericType(parameterTypes[0]);
-            else if (parameterTypes.Length == 2)
-                delegateType = typeof(Action<,>).MakeGenericType(parameterTypes[0], parameterTypes[1]);
-            else if (parameterTypes.Length == 3)
-                delegateType = typeof(Action<,,>).MakeGenericType(parameterTypes[0], parameterTypes[1], parameterTypes[2]);
-            else
-                delegateType = typeof(MulticastDelegate); // Fallback
+            switch (parameterTypes.Length)
+            {
+                case 0: delegateType = typeof(Action); break;
+                case 1: delegateType = typeof(Action<>).MakeGenericType(parameterTypes[0]); break;
+                case 2: delegateType = typeof(Action<,>).MakeGenericType(parameterTypes[0], parameterTypes[1]); break;
+                case 3: delegateType = typeof(Action<,,>).MakeGenericType(parameterTypes[0], parameterTypes[1], parameterTypes[2]); break;
+                default: delegateType = typeof(MulticastDelegate); break;
+            }
         }
         else
         {
-            if (parameterTypes.Length == 0)
-                delegateType = typeof(Func<>).MakeGenericType(returnType);
-            else if (parameterTypes.Length == 1)
-                delegateType = typeof(Func<,>).MakeGenericType(parameterTypes[0], returnType);
-            else if (parameterTypes.Length == 2)
-                delegateType = typeof(Func<,,>).MakeGenericType(parameterTypes[0], parameterTypes[1], returnType);
-            else if (parameterTypes.Length == 3)
-                delegateType = typeof(Func<,,,>).MakeGenericType(parameterTypes[0], parameterTypes[1], parameterTypes[2], returnType);
-            else
-                delegateType = typeof(MulticastDelegate); // Fallback
+            switch (parameterTypes.Length)
+            {
+                case 0: delegateType = typeof(Func<>).MakeGenericType(returnType); break;
+                case 1: delegateType = typeof(Func<,>).MakeGenericType(parameterTypes[0], returnType); break;
+                case 2: delegateType = typeof(Func<,,>).MakeGenericType(parameterTypes[0], parameterTypes[1], returnType); break;
+                case 3: delegateType = typeof(Func<,,,>).MakeGenericType(parameterTypes[0], parameterTypes[1], parameterTypes[2], returnType); break;
+                default: delegateType = typeof(MulticastDelegate); break;
+            }
         }
 
-        // Get the delegate constructor that takes (object target, IntPtr method)
-        ConstructorInfo? ctor = null;
-        if (delegateType != typeof(MulticastDelegate))
+        // Create delegate from dynamic method
+        var anonDel = dynamicMethod.CreateDelegate(delegateType);
+
+        // Register the function
+        var phpFunc = new PhpFunction
         {
-            ctor = delegateType.GetConstructor(new[] { typeof(object), typeof(IntPtr) });
-        }
+            Name = functionName,
+            ReturnType = returnType,
+            ParameterTypes = parameterTypes,
+            Method = anonDel
+        };
+        FunctionTable.RegisterFunction(phpFunc);
 
-        if (ctor == null)
-        {
-            // Fallback - just push null or something
-            Emit(OpCodes.Ldnull);
-            return;
-        }
-
-        // Emit null for target (static method)
-        Emit(OpCodes.Ldnull);
-        
-        // Emit method pointer for our dynamic method
-        Emit(OpCodes.Ldftn, dynamicMethod);
-        
-        // Create delegate instance
+        // Emit Closure object with function name
+        Emit(OpCodes.Ldstr, functionName);
+        var ctor = typeof(PHPIL.Engine.Runtime.Closure).GetConstructor(new[] { typeof(string) });
+        if (ctor == null) throw new InvalidOperationException("Closure constructor not found");
         Emit(OpCodes.Newobj, ctor);
     }
-
-
 }

@@ -4,6 +4,7 @@ using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.SyntaxTree.Structure.OOP;
 using PHPIL.Engine.Visitors.SemanticAnalysis;
+using PHPIL.Engine.Runtime;
 
 namespace PHPIL.Engine.Visitors;
 
@@ -11,6 +12,7 @@ public partial class Compiler
 {
     public void VisitFunctionCallNode(FunctionCallNode node, in ReadOnlySpan<char> source)
     {
+        
         // Try instance method call first
         if (node.Callee is ObjectAccessNode objAccess)
         {
@@ -82,6 +84,53 @@ public partial class Compiler
                 }
             }
             throw new NotImplementedException($"Static method call '{methodName}' not found.");
+        }
+        // Variable call (e.g., $handle(...) or $myCallable(...)) - means we're calling a Closure
+        else if (node.Callee is VariableNode)
+        {
+            var varName = ((VariableNode)node.Callee).Token.TextValue(in source);
+            
+            // First push the variable (which should be a Closure)
+            node.Callee.Accept(this, source);
+
+            // Then push arguments as object array
+            Emit(OpCodes.Ldc_I4, node.Args.Count);
+            Emit(OpCodes.Newarr, typeof(object));
+
+            for (int i = 0; i < node.Args.Count; i++)
+            {
+                Emit(OpCodes.Dup);
+                Emit(OpCodes.Ldc_I4, i);
+                node.Args[i].Accept(this, source);
+                EmitBoxingIfLiteral(node.Args[i]);
+                Emit(OpCodes.Stelem_Ref);
+            }
+
+            // Call Closure.Invoke(object[] args)
+            var invokeMethod = typeof(PHPIL.Engine.Runtime.Closure).GetMethod("Invoke", new[] { typeof(object[]) })!;
+            Emit(OpCodes.Callvirt, invokeMethod);
+            return;
+        }
+        // QualifiedName call (e.g., $handle(...) - could be a closure stored under a name)
+        else if (node.Callee is QualifiedNameNode qname)
+        {
+            var parts = new List<string>();
+            foreach (var p in qname.Parts)
+                parts.Add(p.TextValue(in source));
+            var qnameStr = string.Join("\\", parts);
+            
+            // Try to resolve as a function first
+            var phpFunc2 = ResolveFunction(node.Callee, in source);
+            if (phpFunc2 != null)
+            {
+                // It's a named function, use the normal path
+                ResolveParamsAndCall(node, phpFunc2, source);
+                return;
+            }
+            
+            // If not found as a function, treat as a variable-based closure call
+            // For now, throw an error
+            throw new NotImplementedException($"Qualified name '{qnameStr}' is not a function or closure");
         }
         // Regular function call
         var phpFunc = ResolveFunction(node.Callee, in source);

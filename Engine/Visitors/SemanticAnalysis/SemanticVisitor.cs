@@ -23,7 +23,7 @@ public partial class SemanticVisitor : IVisitor
 
     public void VisitAnonymousFunctionNode(AnonymousFunctionNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        
     }
 
 
@@ -87,4 +87,4 @@ public partial class SemanticVisitor : IVisitor
         node.Property?.Accept(this, source);
         node.AnalysedType = AnalysedType.Mixed;
     }
-}
+}

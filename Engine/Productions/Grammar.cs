@@ -12,4 +12,5 @@ public static partial class Grammar
     public static TraitPattern TraitDeclaration() => new TraitPattern();
     public static ConstantPattern ConstantDeclaration() => new ConstantPattern();
     public static NewPattern NewExpression() => new NewPattern();
+    public static VariablePattern Variable() => new VariablePattern();
 }
