@@ -16,6 +16,7 @@ public partial class Compiler
         if (node.Expression != null)
         {
             node.Expression.Accept(this, source);
+            EmitBoxing(node.Expression);
             switchValue = DeclareLocal(typeof(object));
             Emit(OpCodes.Stloc, switchValue);
         }
@@ -34,6 +35,7 @@ public partial class Compiler
             {
                 Emit(OpCodes.Ldloc, switchValue);
                 caseNode.Expression.Accept(this, source);
+                EmitBoxingIfLiteral(caseNode.Expression);
                 var strictEquals = typeof(PHPIL.Engine.Runtime.Runtime).GetMethod("StrictEquals", BindingFlags.Public | BindingFlags.Static);
                 Emit(OpCodes.Call, strictEquals!);
                 Emit(OpCodes.Brtrue, caseLabels[i]);

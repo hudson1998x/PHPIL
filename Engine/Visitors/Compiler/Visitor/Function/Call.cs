@@ -12,7 +12,6 @@ public partial class Compiler
 {
     public void VisitFunctionCallNode(FunctionCallNode node, in ReadOnlySpan<char> source)
     {
-        
         // Try instance method call first
         if (node.Callee is ObjectAccessNode objAccess)
         {

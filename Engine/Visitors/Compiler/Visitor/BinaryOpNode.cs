@@ -126,6 +126,20 @@ public partial class Compiler
 			case TokenKind.Modulo:      Emit(OpCodes.Rem); break;
 			case TokenKind.LessThan:    Emit(OpCodes.Clt); break;
 			case TokenKind.GreaterThan: Emit(OpCodes.Cgt); break;
+			case TokenKind.LessThanOrEqual:
+			{
+				Emit(OpCodes.Cgt);
+				Emit(OpCodes.Ldc_I4_0);
+				Emit(OpCodes.Ceq);
+				break;
+			}
+			case TokenKind.GreaterThanOrEqual:
+			{
+				Emit(OpCodes.Clt);
+				Emit(OpCodes.Ldc_I4_0);
+				Emit(OpCodes.Ceq);
+				break;
+			}
 			case TokenKind.ShallowEquality: Emit(OpCodes.Ceq); break;
             case TokenKind.LogicalXorKeyword: Emit(OpCodes.Xor); break;
 			default:
@@ -145,7 +159,7 @@ public partial class Compiler
             if (isNestedAssignment)
                 Emit(OpCodes.Dup);
 
-            EmitBoxingIfLiteral(node.Right);
+            EmitBoxing(node.Right);
 
             if (!_locals.TryGetValue(varName, out var local))
             {

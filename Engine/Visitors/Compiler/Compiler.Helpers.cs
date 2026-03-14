@@ -28,6 +28,31 @@ public partial class Compiler
         }
     }
 
+    private void EmitBoxing(SyntaxNode? node)
+    {
+        if (node is LiteralNode literal)
+        {
+            EmitBoxingIfLiteral(literal);
+        }
+        else if (node is BinaryOpNode binOp)
+        {
+            EmitBoxingForBinaryOp(binOp);
+        }
+    }
+
+    private void EmitBoxingForBinaryOp(BinaryOpNode node)
+    {
+        if (node.Operator is TokenKind.Add or TokenKind.Subtract or TokenKind.Multiply or 
+            TokenKind.DivideBy or TokenKind.Modulo or TokenKind.Power)
+        {
+            Emit(OpCodes.Box, typeof(int));
+        }
+        else if (node.Operator is TokenKind.Concat)
+        {
+            // Strings are already reference types, no boxing needed
+        }
+    }
+
     private void EmitCoerceToBool()
     {
         var method = typeof(Runtime.Runtime).GetMethod("CoerceToBool", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)!;
