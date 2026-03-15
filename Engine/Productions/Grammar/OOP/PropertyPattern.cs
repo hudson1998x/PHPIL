@@ -26,9 +26,16 @@ namespace PHPIL.Engine.Productions
                 Parser.SkipTrivia(ref ctx);
             }
 
-            // Handle typed properties: public int $name or public string $name
+            // Handle typed properties: public int $name or public ?string $name or public ?Test $name
             // Type is optional - if present, consume it
-            if (ctx.Peek().Kind == TokenKind.Identifier)
+            // First check for nullable marker at the beginning
+            if (ctx.Peek().Kind == TokenKind.QuestionMark)
+            {
+                ctx.Consume();
+                Parser.SkipTrivia(ref ctx);
+            }
+            
+            if (ctx.Peek().Kind == TokenKind.Identifier || ctx.Peek().Kind == TokenKind.Array)
             {
                 var typeToken = ctx.Peek();
                 var typeText = typeToken.TextValue(in ctx.Source);
@@ -36,6 +43,41 @@ namespace PHPIL.Engine.Productions
                 {
                     ctx.Consume();
                     Parser.SkipTrivia(ref ctx);
+                    // Check for nullable marker after basic type
+                    if (ctx.Peek().Kind == TokenKind.QuestionMark)
+                    {
+                        ctx.Consume();
+                        Parser.SkipTrivia(ref ctx);
+                    }
+                }
+                // Special handling for "self" - consume it but don't treat as class
+                else if (typeText == "self")
+                {
+                    ctx.Consume();
+                    Parser.SkipTrivia(ref ctx);
+                    // Check for nullable marker after self
+                    if (ctx.Peek().Kind == TokenKind.QuestionMark)
+                    {
+                        ctx.Consume();
+                        Parser.SkipTrivia(ref ctx);
+                    }
+                }
+                else
+                {
+                    // Try to match a qualified name (e.g., Namespace\Class or just Class)
+                    // Just consume the identifier and potential namespace separators
+                    ctx.Consume();
+                    Parser.SkipTrivia(ref ctx);
+                    while (ctx.Peek().Kind == TokenKind.NamespaceSeparator)
+                    {
+                        ctx.Consume(); // consume '\'
+                        Parser.SkipTrivia(ref ctx);
+                        if (ctx.Peek().Kind == TokenKind.Identifier)
+                        {
+                            ctx.Consume();
+                            Parser.SkipTrivia(ref ctx);
+                        }
+                    }
                 }
             }
 

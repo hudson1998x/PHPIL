@@ -49,14 +49,14 @@ namespace PHPIL.Engine.Productions.Patterns
             }
 
 
-            // 2. Parse operators ("led" phase)
-            while (!ctx.IsAtEnd)
-            {
-                Parser.SkipTrivia(ref ctx);
-                if (ctx.IsAtEnd) break;
+        // 2. Parse operators ("led" phase)
+        while (!ctx.IsAtEnd)
+        {
+            Parser.SkipTrivia(ref ctx);
+            if (ctx.IsAtEnd) break;
 
-                var token = ctx.Peek();
-                var (precedence, isPostfix, isRightAssoc) = GetOperatorInfo(token.Kind);
+            var token = ctx.Peek();
+            var (precedence, isPostfix, isRightAssoc) = GetOperatorInfo(token.Kind);
 
                 if (precedence <= _minPrecedence || precedence == 0) break;
 

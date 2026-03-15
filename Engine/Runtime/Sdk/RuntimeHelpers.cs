@@ -200,4 +200,32 @@ public static class RuntimeHelpers
         
         throw new Exception($"Static property '{propertyName}' not found on type '{typeName}'");
     }
+    
+    public static void SetStaticField(Type type, string fieldName, object? value)
+    {
+        var field = type.GetField(fieldName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
+        if (field != null)
+        {
+            field.SetValue(null, value);
+            return;
+        }
+        
+        throw new Exception($"Static field '{fieldName}' not found on type '{type.Name}'");
+    }
+    
+    public static void SetStaticFieldByName(string typeName, string fieldName, object? value)
+    {
+        var phpType = Visitors.TypeTable.GetType(typeName);
+        if (phpType?.RuntimeType == null)
+            throw new Exception($"Type '{typeName}' not found.");
+        
+        var field = phpType.RuntimeType.GetField(fieldName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
+        if (field != null)
+        {
+            field.SetValue(null, value);
+            return;
+        }
+        
+        throw new Exception($"Static field '{fieldName}' not found on type '{typeName}'");
+    }
 }

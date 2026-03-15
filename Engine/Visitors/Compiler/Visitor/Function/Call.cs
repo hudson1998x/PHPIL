@@ -12,6 +12,7 @@ public partial class Compiler
 {
     public void VisitFunctionCallNode(FunctionCallNode node, in ReadOnlySpan<char> source)
     {
+        
         // Try instance method call first
         if (node.Callee is ObjectAccessNode objAccess)
         {
@@ -70,7 +71,17 @@ public partial class Compiler
             if (staticAccess.Target is QualifiedNameNode qname)
             {
                 var fqn = ResolveFQN(qname, source);
-                targetType = TypeTable.GetType(fqn)?.RuntimeType;
+                // Special handling for "self" - resolve to current class
+                if (fqn.Equals("self", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (_currentType == null)
+                        throw new Exception("'self' used outside of class context.");
+                    targetType = _currentType;
+                }
+                else
+                {
+                    targetType = TypeTable.GetType(fqn)?.RuntimeType;
+                }
             }
             if (targetType != null)
             {
@@ -122,6 +133,12 @@ public partial class Compiler
             var phpFunc2 = ResolveFunction(node.Callee, in source);
             if (phpFunc2 != null)
             {
+                // For include/require functions, execute immediately during compilation
+                if (phpFunc2.Name is "require_once" or "require" or "include" or "include_once")
+                {
+                    ExecuteIncludeFunction(node, phpFunc2, source);
+                    return;
+                }
                 // It's a named function, use the normal path
                 ResolveParamsAndCall(node, phpFunc2, source);
                 return;
@@ -149,7 +166,40 @@ public partial class Compiler
             }
             throw new NotImplementedException($"The function {name} is not implemented yet");
         }
+        // For include/require functions, execute immediately during compilation
+        if (phpFunc.Name is "require_once" or "require" or "include" or "include_once")
+        {
+            ExecuteIncludeFunction(node, phpFunc, source);
+            return;
+        }
         ResolveParamsAndCall(node, phpFunc, source);
+    }
+
+    private void ExecuteIncludeFunction(FunctionCallNode node, PhpFunction phpFunc, ReadOnlySpan<char> source)
+    {
+        var arg = node.Args.FirstOrDefault();
+        if (arg == null)
+            throw new Exception("include/require requires a string argument");
+
+        // For dynamic paths (variables), we can't execute at compile time
+        // Emit code to execute it at runtime instead
+        if (arg is not LiteralNode)
+        {
+            ResolveParamsAndCall(node, phpFunc, source);
+            return;
+        }
+
+        var filePath = ((LiteralNode)arg).Token.TextValue(in source).Trim('\'', '"');
+        
+        try
+        {
+            PHPIL.Engine.Runtime.Runtime.ExecuteFile(filePath);
+        }
+        catch (PHPIL.Engine.Runtime.Sdk.DieException)
+        {
+            // die() was called in the included file - propagate it
+            throw;
+        }
     }
 
     private void ResolveParamsAndCall(FunctionCallNode node, PhpFunction phpFunc, ReadOnlySpan<char> source)

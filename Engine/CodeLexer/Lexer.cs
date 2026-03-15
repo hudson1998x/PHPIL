@@ -823,7 +823,13 @@ public static partial class Lexer
                     if (IsSequence(in sourceSpan, position, 'r', 'e', 'q', 'u', 'i', 'r', 'e', '_', 'o', 'n', 'c', 'e')
                         && IsKeywordBoundary(in sourceSpan, position + 12))
                     {
-                        AddToken(TokenKind.Identifier, position + 12);
+                        AddToken(TokenKind.RequireOnce, position + 12);
+                        continue;
+                    }
+                    if (IsSequence(in sourceSpan, position, 'r', 'e', 'q', 'u', 'i', 'r', 'e')
+                        && IsKeywordBoundary(in sourceSpan, position + 7))
+                    {
+                        AddToken(TokenKind.Require, position + 7);
                         continue;
                     }
                     if (IsSequence(in sourceSpan, position, 'r', 'e', 'a', 'd', 'o', 'n', 'l', 'y')
@@ -836,12 +842,6 @@ public static partial class Lexer
                         && IsKeywordBoundary(in sourceSpan, position + 6))
                     {
                         AddToken(TokenKind.Return, position + 6);
-                        continue;
-                    }
-                    if (IsSequence(in sourceSpan, position, 'r', 'e', 'q', 'u', 'i', 'r', 'e')
-                        && IsKeywordBoundary(in sourceSpan, position + 7))
-                    {
-                        AddToken(TokenKind.Identifier, position + 7);
                         continue;
                     }
                     goto default;

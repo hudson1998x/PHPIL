@@ -23,11 +23,26 @@ public class ParameterListPattern : Pattern
             Token? typeHint = null;
             SyntaxNode? defaultValue = null;
 
-            // Check for Type Hint: Identifier followed by a Variable
-            if (ctx.Peek().Kind == TokenKind.Identifier && PeekNextNonTrivia(ref ctx).Kind == TokenKind.Variable)
+            // Check for Type Hint: Identifier or array keyword followed by a Variable
+            if ((ctx.Peek().Kind == TokenKind.Identifier || ctx.Peek().Kind == TokenKind.Array) 
+                && PeekNextNonTrivia(ref ctx).Kind == TokenKind.Variable)
             {
                 typeHint = ctx.Consume();
                 SkipTrivia(ref ctx);
+            }
+
+            // Must have a Variable name
+            if (ctx.Peek().Kind != TokenKind.Variable)
+            {
+                ctx.Restore(start);
+                return false;
+            }
+
+            // Must have a Variable name
+            if (ctx.Peek().Kind != TokenKind.Variable)
+            {
+                ctx.Restore(start);
+                return false;
             }
 
             // Must have a Variable name
