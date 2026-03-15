@@ -1,5 +1,9 @@
 <?php
 
-require_once('Samples/app/autoload.php');
+require_once('Samples/app/bootstrap.php');
 
-$user = new System\User();
+Eventing\Events::On('request', function($url) {
+    print("[URL] {$url}");
+});
+
+Eventing\Events::Dispatch('request', '/path/to/users');
