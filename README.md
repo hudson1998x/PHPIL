@@ -1,105 +1,86 @@
-﻿# PHPIL
+﻿# PHP-IL: A CLR-Based PHP Runtime
 
-**PHPIL** is a home-grown, experimental project designed purely for fun. It is a fast, modular PHP-inspired IL generation and execution engine built in C#.
+A custom PHP runtime built on .NET that transforms PHP into MSIL and executes it on the Common Language Runtime. Heavily unit tested and continuously improving toward production-ready stability and performance.
 
-This project explores building a full compiler/interpreter pipeline from scratch, including **lexing, parsing, syntax trees, and IL emission**. While entirely experimental, it demonstrates **efficient parsing and IL generation**, leveraging modern C# features like `ReadOnlySpan`, struct-based tokens, and byte enums to keep memory usage compact and performance high.
-
-![SoftwareFlow](Documentation/Panel1.png)
+> **Status**: Not production-ready. Large portions of the PHP standard library await implementation. The philosophy: ship something that works, improve iteratively. **Goal**: A stable PHP runtime that outperforms the official engine.
 
 ---
 
-## Key Features
+## Quick Start
 
-### 1. Lexer (`PHPIL.Engine.CodeLexer.Lexer`)
+```bash
+dotnet run -- -s 0.0.0.0:8080 path/to/app/index.php
+```
 
-* Converts PHP-like source code into a **stream of compact tokens** (`Token` structs with `TokenKind` as a byte enum).
-* Optimized for **memory and speed** using `ReadOnlySpan<char>` to avoid unnecessary allocations.
-* **JIT compilation boosts performance:**
+**How it works:**
+- The server changes the execution directory to `path/to/app/`
+- Executes `index.php` as if called from that directory
+- Access your app at `http://localhost:8080`
 
-    * First parse of a large file takes ~3ms due to JIT
-    * Subsequent parses of the same file are sub-millisecond
-* Handles **strings, comments, variables, numbers, operators, punctuation, and keywords**.
+**Try the sample app:**
+```bash
+dotnet run -- -s 0.0.0.0:8080 Samples/index.php
+```
+Then visit http://localhost:8080
 
-### 2. Parser & Productions (`PHPIL.Engine.Productions`)
-
-* Uses **combinator-style productions** for readable and maintainable parsing rules.
-* Supports sequences, optional patterns, repetition, lookahead, and negative lookahead.
-* Operates on **`ReadOnlySpan<Token>`**, making parsing **allocation-free and efficient**.
-* Grammar is **still under development**, with new rules and constructs being added regularly.
-* Operator precedence is handled; loops are still a work-in-progress.
-
-### 3. Abstract Syntax Tree (AST) (`PHPIL.Engine.SyntaxTree`)
-
-* **Nodes are self-contained** and know how to output themselves for a given visitor.
-* Implements **Pratt-style parsing**, with accurate `Led` and `Nud` postfixing.
-* Supports **JSON serialization** using `ToJson`, which is useful for tooling and debugging.
-* Can be traversed using visitors for further processing.
-
-### 4. IL Emission (`PHPIL.Engine.Visitors.IlProducer`)
-
-* **`IlProducer`** traverses the AST and generates .NET IL for execution.
-* Uses **`ILSpy`**, a logging wrapper for `ILGenerator` that outputs every emitted opcode, local, branch, and call — perfect for debugging.
-* Syntax nodes emit IL according to the visitor provided, keeping the separation of concerns clean.
-* Tracks **types on the stack** via `LastEmittedType` and maintains variable scope via `RuntimeContext`.
-* Supports **DynamicMethod execution**, allowing emitted code to be run immediately.
+> **Note**: On Windows and Linux, you may need to add a URL reservation. Check your OS-specific documentation.
 
 ---
 
-## Performance
+## How It Works
 
-* Tokens are **structs**, `TokenKind` is a **byte enum**, and spans are used throughout for **compact memory representation**.
-* Parsing is fast: after initial JIT overhead (~3ms for a large file), re-parsing is **sub-millisecond**.
-* IL emission is **logged for debugging** without affecting runtime execution.
+PHP-IL transforms PHP source code through a multi-stage pipeline:
 
----
+1. **Tokeniser**: Parses PHP into tokens (sub-millisecond, post-JIT warmup)
+2. **AST Parser**: Builds an abstract syntax tree using grammar rules (sub-millisecond)
+3. **Semantic Visitor**: Identifies types and variable usage patterns
+4. **Compiler Visitor**: Generates MSIL bytecode
+5. **CLR Execution**: Runs on the .NET Common Language Runtime
 
-## Status & Roadmap
-
-* The project is **experimental and still in development**.
-* New grammar rules and productions are continually being added.
-* Loops and some complex constructs are not fully implemented yet.
-* Feedback, exploration, and experimentation are welcome.
+All stages are designed for speed and are continuously optimized.
 
 ---
 
-## Usage
+## Contributing
 
-1. **Lex a source file**:
+Contributions are welcome and valuable across multiple areas:
 
-```csharp
-var tokens = Lexer.ParseFile("example.php");
+### Areas for Contribution
+
+| Area | Notes |
+|------|-------|
+| **Standard Library** | Add new functions or improve existing implementations |
+| **Tokeniser** | Parser already hits sub-ms speeds: further optimizations welcome |
+| **AST Parser** | Grammar-based parser running at sub-ms: improvements appreciated |
+| **Semantic Visitor** | Type identification and variable tracking: execution speed improvements sought |
+| **Compiler Visitor** | Open for all improvements |
+
+##### Running tests:
+```bash
+dotnet run --tests
 ```
+This runs tests in the Tests/ directory. Make sure any additional tests go in an appropriate test directory. 
 
-2. **Parse tokens into a syntax tree**:
+### PR Guidelines
 
-```csharp
-var rootNode = Parser.Parse(tokens, source.AsSpan());
-```
+Include in every PR:
+- **Files edited** with a description of changes
+- **Local test results**: what you tested and the outcome
+- **Clear explanation**: you can walk through what your edits do
 
-3. **Generate IL**:
+From there:
+- I'll run tests in a disposable VM
+- If tests pass and the code is secure, it gets merged
 
-```csharp
-var ilProducer = new IlProducer();
-rootNode.Accept(ilProducer, source.AsSpan());
-ilProducer.Execute();
-```
+### AI Submissions
 
-4. **Inspect IL** (optional):
-
-```csharp
-Console.WriteLine(ilProducer.GetILGenerator().GetLog());
-```
-
-5. **Serialize AST**:
-
-```csharp
-var builder = new StringBuilder();
-rootNode.ToJson(source.AsSpan(), tokens.AsSpan(), builder);
-Console.WriteLine(builder.ToString());
-```
+AI-generated PRs are **not accepted**. All submissions must:
+- Be written by you (not AI)
+- Be accompanied by your explanation of the changes
+- Pass all tests
 
 ---
 
-## Conclusion
+## License
 
-PHPIL is a **fun, fast, and educational project** exploring parsing, AST generation, and IL emission in C#. It demonstrates **modern C# memory efficiency**, **visitor-driven AST traversal**, and **debug-friendly IL generation**. While not production-ready, it provides a playground for experimentation with **language parsing and compilation techniques**.
+MIT License.
