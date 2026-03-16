@@ -27,6 +27,20 @@ public static partial class IncludeRequire
 {
     public static void RequireOnce(string value)
     {
+        var context = Runtime.CurrentContext;
+        var filePath = Path.GetFullPath(value);
+
+        if (context != null)
+        {
+            // Check if file has already been required in this execution context
+            if (!context.MarkFileRequired(filePath))
+            {
+                // File was already required, skip
+                return;
+            }
+        }
+
+        // File hasn't been required yet (or no context), execute it
         Runtime.ExecuteFile(value);
     }
 }

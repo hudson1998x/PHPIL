@@ -40,6 +40,10 @@ namespace PHPIL.Engine.DevServer
 
         private static async Task HandleRequest(HttpListenerContext context, string entryPointFileName)
         {
+            // Create an isolated execution context for this request
+            var executionContext = new Runtime.ExecutionContext();
+            Runtime.Runtime.SetContext(executionContext);
+
             try
             {
                 var requestPath = context.Request.Url!.AbsolutePath.TrimStart('/');
@@ -57,15 +61,13 @@ namespace PHPIL.Engine.DevServer
                 }
                 else
                 {
-                    // Step 3: Populate superglobals from HTTP request
-                    PopulateSuperglobals(context);
+                    // Populate superglobals from HTTP request into the isolated context
+                    PopulateSuperglobals(context, executionContext);
                     
-                    // Step 4: Route to entry point
+                    // Execute PHP script
                     var output = ExecutePhp(entryPointFileName);
                     
-                    // Clear superglobals after execution
-                    GlobalState.ClearSuperglobals();
-                    
+                    // Send response
                     var buffer = Encoding.UTF8.GetBytes(output);
                     context.Response.ContentLength64 = buffer.Length;
                     context.Response.ContentType = "text/html";
@@ -86,6 +88,10 @@ namespace PHPIL.Engine.DevServer
             finally
             {
                 context.Response.Close();
+                
+                // Clean up execution context
+                Runtime.Runtime.ClearContext();
+                executionContext.Dispose();
             }
         }
 
@@ -96,7 +102,7 @@ namespace PHPIL.Engine.DevServer
             return Runtime.Runtime.GetExecutionResult();
         }
 
-        private static void PopulateSuperglobals(HttpListenerContext context)
+        private static void PopulateSuperglobals(HttpListenerContext context, Runtime.ExecutionContext executionContext)
         {
             var request = context.Request;
             
@@ -132,7 +138,7 @@ namespace PHPIL.Engine.DevServer
                 serverVars[key] = request.Headers[header] ?? "";
             }
             
-            GlobalState.PopulateServer(serverVars);
+            executionContext.PopulateServer(serverVars);
             
             // Populate $_GET from query string
             var getVars = new Dictionary<object, object>();
@@ -150,7 +156,7 @@ namespace PHPIL.Engine.DevServer
                     }
                 }
             }
-            GlobalState.PopulateGet(getVars);
+            executionContext.PopulateGet(getVars);
             
             // Populate $_POST from request body
             var postVars = new Dictionary<object, object>();
@@ -180,7 +186,7 @@ namespace PHPIL.Engine.DevServer
                     // Ignore parsing errors
                 }
             }
-            GlobalState.PopulatePost(postVars);
+            executionContext.PopulatePost(postVars);
             
             // Populate $_COOKIE from Cookie header
             var cookieVars = new Dictionary<object, object>();
@@ -198,7 +204,7 @@ namespace PHPIL.Engine.DevServer
                     }
                 }
             }
-            GlobalState.PopulateCookie(cookieVars);
+            executionContext.PopulateCookie(cookieVars);
             
             // Populate $_REQUEST with combined GET, POST, and COOKIE
             var requestVars = new Dictionary<object, object>();
@@ -208,7 +214,7 @@ namespace PHPIL.Engine.DevServer
                 requestVars[kvp.Key] = kvp.Value;
             foreach (var kvp in cookieVars)
                 requestVars[kvp.Key] = kvp.Value;
-            GlobalState.PopulateRequest(requestVars);
+            executionContext.PopulateRequest(requestVars);
         }
     }
 }

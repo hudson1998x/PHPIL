@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Reflection.Emit;
+using PHPIL.Engine.Exceptions;
 
 namespace PHPIL.Engine.Runtime.Sdk;
 
@@ -491,7 +492,7 @@ public static class RuntimeHelpers
         var phpFunc = Visitors.FunctionTable.GetFunction(functionName);
         if (phpFunc == null)
         {
-            throw new Exception($"Function '{functionName}' not found");
+            throw new FunctionNotDefinedException(functionName, "TODO(RuntimeHelpers.cs, L495)", 0, 0);
         }
         
         var methodToCall = phpFunc.MethodInfo ?? phpFunc.Method?.Method;

@@ -16,6 +16,7 @@ namespace PHPIL.Engine.Visitors
 
         /// <summary>
         /// Monotonically increasing counter used to generate unique anonymous function names.
+        /// Thread-safe via Interlocked.Increment.
         /// </summary>
         private static int _anonymousId = 0;
 
@@ -30,12 +31,12 @@ namespace PHPIL.Engine.Visitors
 
         /// <summary>
         /// Returns a unique string identifier for the next anonymous function and advances
-        /// the internal counter.
+        /// the internal counter in a thread-safe manner.
         /// </summary>
         /// <returns>A string representation of the current anonymous function index.</returns>
         public static string GetNextAnonymousId()
         {
-            return (_anonymousId++).ToString();
+            return System.Threading.Interlocked.Increment(ref _anonymousId).ToString();
         }
 
         /// <summary>

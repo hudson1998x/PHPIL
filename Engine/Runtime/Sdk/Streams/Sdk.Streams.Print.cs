@@ -23,6 +23,15 @@ public static partial class SdkInitializer
 
 public static partial class Streams
 {
+    /// <summary>
+    /// Gets the appropriate output stream for the current execution context.
+    /// </summary>
+    private static StreamWriter GetOutputStream()
+    {
+        var context = Runtime.CurrentContext;
+        return context?.OutputStream ?? SdkInitializer.StdoutStream;
+    }
+
     public static void Print(object value)
     {
         string str = value switch
@@ -31,20 +40,20 @@ public static partial class Streams
             null => "",
             _ => value.ToString()?.Replace("\\n", "\n") ?? ""
         };
-        SdkInitializer.StdoutStream.Write(str);
+        GetOutputStream().Write(str);
     }
 
     public static object PrintR(object value)
     {
         string output = FormatValue(value, 0);
-        SdkInitializer.StdoutStream.Write(output);
+        GetOutputStream().Write(output);
         return true;
     }
 
     public static void VarDump(object value)
     {
         string output = FormatVarDump(value, 0);
-        SdkInitializer.StdoutStream.Write(output);
+        GetOutputStream().Write(output);
     }
 
     private static string FormatValue(object value, int depth)
