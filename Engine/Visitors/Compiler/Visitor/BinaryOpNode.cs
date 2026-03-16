@@ -200,6 +200,14 @@ public partial class Compiler
         if (node.Left is VariableNode varNode)
         {
             var varName = varNode.Token.TextValue(in source);
+            
+            // Check if this is a superglobal
+            if (Superglobals.Contains(varName))
+            {
+                // Cannot directly assign to a superglobal variable itself, only to array elements
+                throw new Exception($"Cannot assign directly to superglobal '{varName}'. Use array syntax like {varName}['key'] = value");
+            }
+            
             bool isNestedAssignment = node.Right is BinaryOpNode { Operator: var op } && IsAssignment(op);
 
             node.Right?.Accept(this, source);

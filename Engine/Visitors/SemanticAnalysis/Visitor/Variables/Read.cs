@@ -5,9 +5,23 @@ namespace PHPIL.Engine.Visitors.SemanticAnalysis;
 
 public partial class SemanticVisitor
 {
+    // List of standard PHP superglobals
+    private static readonly HashSet<string> Superglobals = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "$_GET", "$_POST", "$_COOKIE", "$_SERVER", "$_REQUEST", "$_FILES", "$_ENV", "$_SESSION"
+    };
+
     public void VisitVariableNode(VariableNode node, in ReadOnlySpan<char> source)
     {
         var name = node.Token.TextValue(in source);
+
+        // Check if this is a superglobal
+        if (IsSuperglobal(name))
+        {
+            // Mark as superglobal - this will be handled specially during compilation
+            node.AnalysedType = AnalysedType.Mixed; // Superglobals can contain any type
+            return;
+        }
 
         VariableInfo? info = null;
 
@@ -40,5 +54,10 @@ public partial class SemanticVisitor
             };
             currentFrame.Variables[name] = newInfo;
         }
+    }
+
+    private bool IsSuperglobal(string name)
+    {
+        return Superglobals.Contains(name);
     }
 }

@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using PHPIL.Engine.Runtime;
 
 namespace PHPIL.Engine.DevServer
 {
@@ -55,8 +57,14 @@ namespace PHPIL.Engine.DevServer
                 }
                 else
                 {
-                    // Step 3: Route to entry point
+                    // Step 3: Populate superglobals from HTTP request
+                    PopulateSuperglobals(context);
+                    
+                    // Step 4: Route to entry point
                     var output = ExecutePhp(entryPointFileName);
+                    
+                    // Clear superglobals after execution
+                    GlobalState.ClearSuperglobals();
                     
                     var buffer = Encoding.UTF8.GetBytes(output);
                     context.Response.ContentLength64 = buffer.Length;
@@ -86,6 +94,121 @@ namespace PHPIL.Engine.DevServer
         {
             Runtime.Runtime.ExecuteFile(script);
             return Runtime.Runtime.GetExecutionResult();
+        }
+
+        private static void PopulateSuperglobals(HttpListenerContext context)
+        {
+            var request = context.Request;
+            
+            // Populate $_SERVER
+            var serverVars = new Dictionary<object, object>
+            {
+                ["SERVER_NAME"] = request.Url?.Host ?? "",
+                ["SERVER_PORT"] = request.Url?.Port.ToString() ?? "",
+                ["REQUEST_METHOD"] = request.HttpMethod,
+                ["REQUEST_URI"] = request.Url?.AbsolutePath ?? "",
+                ["QUERY_STRING"] = request.Url?.Query.TrimStart('?') ?? "",
+                ["REMOTE_ADDR"] = request.RemoteEndPoint?.Address.ToString() ?? "",
+                ["HTTP_HOST"] = request.Headers["Host"] ?? "",
+                ["HTTP_USER_AGENT"] = request.UserAgent ?? "",
+                ["HTTP_ACCEPT"] = request.Headers["Accept"] ?? "",
+                ["HTTP_ACCEPT_LANGUAGE"] = request.Headers["Accept-Language"] ?? "",
+                ["HTTP_ACCEPT_ENCODING"] = request.Headers["Accept-Encoding"] ?? "",
+                ["HTTP_CONNECTION"] = request.Headers["Connection"] ?? "",
+                ["HTTP_CACHE_CONTROL"] = request.Headers["Cache-Control"] ?? "",
+                ["HTTP_COOKIE"] = request.Headers["Cookie"] ?? "",
+                ["CONTENT_TYPE"] = request.ContentType ?? "",
+                ["CONTENT_LENGTH"] = request.ContentLength64.ToString(),
+                ["SCRIPT_FILENAME"] = Path.GetFullPath(request.Url?.AbsolutePath ?? ""),
+                ["SCRIPT_NAME"] = request.Url?.AbsolutePath ?? "",
+                ["REQUEST_SCHEME"] = request.Url?.Scheme ?? "http",
+                ["HTTPS"] = request.Url?.Scheme == "https" ? "on" : "off"
+            };
+            
+            // Add all request headers with HTTP_ prefix
+            foreach (string header in request.Headers.AllKeys)
+            {
+                var key = "HTTP_" + header.ToUpper().Replace("-", "_");
+                serverVars[key] = request.Headers[header] ?? "";
+            }
+            
+            GlobalState.PopulateServer(serverVars);
+            
+            // Populate $_GET from query string
+            var getVars = new Dictionary<object, object>();
+            var queryString = request.Url?.Query.TrimStart('?') ?? "";
+            if (!string.IsNullOrEmpty(queryString))
+            {
+                foreach (var pair in queryString.Split('&'))
+                {
+                    var parts = pair.Split('=');
+                    if (parts.Length == 2)
+                    {
+                        var key = Uri.UnescapeDataString(parts[0]);
+                        var value = Uri.UnescapeDataString(parts[1]);
+                        getVars[key] = value;
+                    }
+                }
+            }
+            GlobalState.PopulateGet(getVars);
+            
+            // Populate $_POST from request body
+            var postVars = new Dictionary<object, object>();
+            if (request.HasEntityBody && (request.HttpMethod == "POST" || request.HttpMethod == "PUT" || request.HttpMethod == "PATCH"))
+            {
+                try
+                {
+                    using var reader = new StreamReader(request.InputStream, request.ContentEncoding ?? Encoding.UTF8);
+                    var body = reader.ReadToEnd();
+                    
+                    if (request.ContentType?.StartsWith("application/x-www-form-urlencoded") == true)
+                    {
+                        foreach (var pair in body.Split('&'))
+                        {
+                            var parts = pair.Split('=');
+                            if (parts.Length == 2)
+                            {
+                                var key = Uri.UnescapeDataString(parts[0]);
+                                var value = Uri.UnescapeDataString(parts[1]);
+                                postVars[key] = value;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore parsing errors
+                }
+            }
+            GlobalState.PopulatePost(postVars);
+            
+            // Populate $_COOKIE from Cookie header
+            var cookieVars = new Dictionary<object, object>();
+            var cookieHeader = request.Headers["Cookie"];
+            if (!string.IsNullOrEmpty(cookieHeader))
+            {
+                foreach (var pair in cookieHeader.Split(';'))
+                {
+                    var parts = pair.Trim().Split('=');
+                    if (parts.Length >= 2)
+                    {
+                        var key = Uri.UnescapeDataString(parts[0]);
+                        var value = Uri.UnescapeDataString(string.Join("=", parts.Skip(1)));
+                        cookieVars[key] = value;
+                    }
+                }
+            }
+            GlobalState.PopulateCookie(cookieVars);
+            
+            // Populate $_REQUEST with combined GET, POST, and COOKIE
+            var requestVars = new Dictionary<object, object>();
+            foreach (var kvp in getVars)
+                requestVars[kvp.Key] = kvp.Value;
+            foreach (var kvp in postVars)
+                requestVars[kvp.Key] = kvp.Value;
+            foreach (var kvp in cookieVars)
+                requestVars[kvp.Key] = kvp.Value;
+            GlobalState.PopulateRequest(requestVars);
         }
     }
 }

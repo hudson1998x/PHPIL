@@ -49,6 +49,7 @@ public partial class TestUtility
         utility.Run<ForeachExecutionTests>();
         utility.Run<SwitchExecutionTests>();
         utility.Run<SyntaxTests>();
+        utility.Run<SuperglobalsExecutionTests>();
         
         utility.PrintSummary();
 
