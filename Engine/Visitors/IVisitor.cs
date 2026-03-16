@@ -35,4 +35,5 @@ public partial interface IVisitor
     public void Visit(SyntaxNode node, in ReadOnlySpan<char> span);
     void VisitQualifiedNameNode(QualifiedNameNode node, in ReadOnlySpan<char> source);
     void VisitObjectAccessNode(ObjectAccessNode node, in ReadOnlySpan<char> source);
+    void VisitSpreadNode(SpreadNode node, in ReadOnlySpan<char> source);
 }

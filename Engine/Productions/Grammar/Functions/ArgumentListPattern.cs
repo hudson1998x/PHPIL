@@ -1,6 +1,7 @@
 ﻿using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.Visitors;
 
 
@@ -24,12 +25,28 @@ namespace PHPIL.Engine.Productions.Patterns
             // 2. Parse arguments until ')'
             while (!ctx.IsAtEnd && ctx.Peek().Kind != TokenKind.RightParen)
             {
+                // Check for spread operator
+                bool isSpread = ctx.Peek().Kind == TokenKind.CollectSpread;
+                if (isSpread)
+                {
+                    ctx.Consume(); // Consume '...'
+                }
+
                 // This will now handle Variables, Literals, or even nested Function Calls
                 // because Inner(0) calls Parser.ParseSingle.
                 var exprPattern = new InnerExpressionPattern(0);
                 if (exprPattern.TryMatch(ref ctx, out var argNode) && argNode is ExpressionNode expr)
                 {
-                    args.Add(expr);
+                    if (isSpread)
+                    {
+                        // Wrap in SpreadNode
+                        var spreadNode = new SpreadNode { Expression = expr };
+                        args.Add(spreadNode);
+                    }
+                    else
+                    {
+                        args.Add(expr);
+                    }
                 }
                 else
                 {

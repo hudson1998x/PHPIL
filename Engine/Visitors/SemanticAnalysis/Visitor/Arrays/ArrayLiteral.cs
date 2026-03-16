@@ -48,4 +48,10 @@ public partial class SemanticVisitor
         node.IsAssociative = hasStringKeys || hasVariableKeys;
         node.AnalysedType = AnalysedType.Array;
     }
+
+    public void VisitSpreadNode(SpreadNode node, in ReadOnlySpan<char> source)
+    {
+        node.Expression.Accept(this, source);
+        node.AnalysedType = node.Expression.AnalysedType;
+    }
 }

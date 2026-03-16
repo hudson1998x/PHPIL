@@ -7,6 +7,30 @@ public static class RuntimeHelpers
 {
     public static object CallMethod(object? obj, string methodName, object?[] args)
     {
+        // Expand spread arguments
+        var finalArgs = new List<object?>();
+        foreach (var arg in args)
+        {
+            if (arg is System.Collections.Generic.Dictionary<object, object> dictionary)
+            {
+                foreach (var value in dictionary.Values)
+                {
+                    finalArgs.Add(value);
+                }
+            }
+            else if (arg is System.Collections.IEnumerable enumerable && arg is not string)
+            {
+                foreach (var item in enumerable)
+                {
+                    finalArgs.Add(item);
+                }
+            }
+            else
+            {
+                finalArgs.Add(arg);
+            }
+        }
+        
         if (obj == null) throw new Exception("Cannot call method on null");
         
         var type = obj.GetType();
@@ -20,9 +44,9 @@ public static class RuntimeHelpers
             foreach (var method in methods)
             {
                 var parameters = method.GetParameters();
-                if (parameters.Length == args.Length)
+                if (parameters.Length == finalArgs.Count)
                 {
-                    return method.Invoke(obj, args) ?? (object)"";
+                    return method.Invoke(obj, finalArgs.ToArray()) ?? (object)"";
                 }
             }
             
@@ -47,6 +71,30 @@ public static class RuntimeHelpers
 
     public static object CallStaticMethod(Type type, string methodName, object?[] args)
     {
+        // Expand spread arguments
+        var finalArgs = new List<object?>();
+        foreach (var arg in args)
+        {
+            if (arg is System.Collections.Generic.Dictionary<object, object> dictionary)
+            {
+                foreach (var value in dictionary.Values)
+                {
+                    finalArgs.Add(value);
+                }
+            }
+            else if (arg is System.Collections.IEnumerable enumerable && arg is not string)
+            {
+                foreach (var item in enumerable)
+                {
+                    finalArgs.Add(item);
+                }
+            }
+            else
+            {
+                finalArgs.Add(arg);
+            }
+        }
+        
         var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.IgnoreCase)
             .Where(m => m.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase))
             .ToArray();
@@ -54,9 +102,9 @@ public static class RuntimeHelpers
         foreach (var method in methods)
         {
             var parameters = method.GetParameters();
-            if (parameters.Length == args.Length)
+            if (parameters.Length == finalArgs.Count)
             {
-                return method.Invoke(null, args) ?? (object)"";
+                return method.Invoke(null, finalArgs.ToArray()) ?? (object)"";
             }
         }
         
@@ -223,8 +271,10 @@ public static class RuntimeHelpers
         var normalizedTypeName = typeName.Replace(".", "\\");
         
         var phpType = Visitors.TypeTable.GetType(normalizedTypeName);
-        if (phpType?.RuntimeType == null)
+        if (phpType?.RuntimeType == null) 
+        {
             throw new Exception($"Type '{typeName}' not found.");
+        }
         
         var field = phpType.RuntimeType.GetField(fieldName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
         if (field != null)
@@ -234,5 +284,113 @@ public static class RuntimeHelpers
         }
         
         throw new Exception($"Static field '{fieldName}' not found on type '{typeName}'");
+    }
+
+    public static object CallStaticMethodByName(string typeName, string methodName, object?[] args)
+    {
+        // Expand spread arguments
+        var finalArgs = new List<object?>();
+        foreach (var arg in args)
+        {
+            if (arg is System.Collections.Generic.Dictionary<object, object> dictionary)
+            {
+                foreach (var value in dictionary.Values)
+                {
+                    finalArgs.Add(value);
+                }
+            }
+            else if (arg is System.Collections.IEnumerable enumerable && arg is not string)
+            {
+                foreach (var item in enumerable)
+                {
+                    finalArgs.Add(item);
+                }
+            }
+            else
+            {
+                finalArgs.Add(arg);
+            }
+        }
+
+        var normalizedTypeName = typeName.Replace(".", "\\");
+        var phpType = Visitors.TypeTable.GetType(normalizedTypeName);
+        if (phpType?.RuntimeType == null)
+        {
+            throw new Exception($"Type '{typeName}' not found.");
+        }
+
+        var type = phpType.RuntimeType;
+        var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.IgnoreCase)
+            .Where(m => m.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        foreach (var method in methods)
+        {
+            var parameters = method.GetParameters();
+            if (parameters.Length == finalArgs.Count)
+            {
+                return method.Invoke(null, finalArgs.ToArray()) ?? (object)"";
+            }
+        }
+
+        if (methods.Length > 0)
+        {
+            var paramCounts = string.Join(", ", methods.Select(m => m.GetParameters().Length));
+            throw new Exception($"Static method '{methodName}' found but no matching overload ({paramCounts})");
+        }
+
+        throw new Exception($"Static method '{methodName}' not found on type '{typeName}'");
+    }
+
+    public static object CallFunctionWithSpread(string functionName, object?[] args)
+    {
+        // For PHP functions, we need to handle spread arguments
+        // The args array may contain arrays (from spread) that need to be expanded
+        
+        // Collect all arguments, expanding any arrays
+        var finalArgs = new List<object?>();
+        
+        foreach (var arg in args)
+        {
+            if (arg is System.Collections.Generic.Dictionary<object, object> dictionary)
+            {
+                // It's a PHP array (dictionary), expand its VALUES
+                // PHP arrays are ordered maps, but Dictionary iteration order is not guaranteed
+                // However, we rely on .NET Core's Dictionary preserving insertion order
+                foreach (var value in dictionary.Values)
+                {
+                    finalArgs.Add(value);
+                }
+            }
+            else if (arg is System.Collections.IEnumerable enumerable && arg is not string)
+            {
+                // It's some other collection, expand it
+                foreach (var item in enumerable)
+                {
+                    finalArgs.Add(item);
+                }
+            }
+            else
+            {
+                finalArgs.Add(arg);
+            }
+        }
+        
+        // Look up the function in the function table
+        var phpFunc = Visitors.FunctionTable.GetFunction(functionName);
+        if (phpFunc == null)
+        {
+            throw new Exception($"Function '{functionName}' not found");
+        }
+        
+        var methodToCall = phpFunc.MethodInfo ?? phpFunc.Method?.Method;
+        if (methodToCall == null)
+        {
+            throw new Exception($"Cannot call function '{functionName}': no method available");
+        }
+        
+        // Invoke the function with expanded arguments
+        var result = methodToCall.Invoke(null, finalArgs.ToArray());
+        return result ?? "";
     }
 }

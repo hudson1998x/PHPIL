@@ -29,14 +29,17 @@ public partial class Compiler
                 method = TypeTable.GetMethod(fqn, methodName);
             }
             
-            if (method != null)
+            bool hasSpread = node.Args.Any(arg => arg is SpreadNode);
+
+            if (method != null && !hasSpread)
             {
+                // Direct call is safe
                 foreach (var arg in node.Args) arg.Accept(this, source);
                 Emit(OpCodes.Callvirt, method);
                 return;
             }
             
-            // Fall back to runtime helper for dynamic method calls
+            // Fall back to runtime helper for dynamic method calls or spread arguments
             Emit(OpCodes.Ldstr, methodName);
             var callMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("CallMethod", new[] { typeof(object), typeof(string), typeof(object[]) })!;
             
@@ -83,7 +86,9 @@ public partial class Compiler
                     targetType = TypeTable.GetType(fqn)?.RuntimeType;
                 }
             }
-            if (targetType != null)
+            bool hasSpread = node.Args.Any(arg => arg is SpreadNode);
+
+            if (targetType != null && !hasSpread)
             {
                 var method = targetType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
                 if (method != null)
@@ -93,7 +98,50 @@ public partial class Compiler
                     return;
                 }
             }
-            throw new NotImplementedException($"Static method call '{methodName}' not found.");
+            
+            // Fallback to runtime helper for spread or method not found
+            // We need the type name string
+            string typeName = "";
+            if (staticAccess.Target is QualifiedNameNode targetQname)
+            {
+                var parts = new List<string>();
+                foreach (var p in targetQname.Parts)
+                    parts.Add(p.TextValue(in source));
+                typeName = string.Join("\\", parts);
+            }
+            else if (staticAccess.Target is IdentifierNode id && id.Token.TextValue(in source).Equals("self", StringComparison.OrdinalIgnoreCase))
+            {
+                if (_currentType != null)
+                    typeName = _currentType.Name.Replace(".", "\\");
+                else
+                    throw new Exception("'self' used outside of class context.");
+            }
+            else
+            {
+                // For dynamic type (e.g. $class::method()), we can't resolve type name at compile time
+                throw new NotImplementedException($"Static method call on dynamic type not supported");
+            }
+
+            Emit(OpCodes.Ldstr, typeName);
+            Emit(OpCodes.Ldstr, methodName);
+            var callMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("CallStaticMethodByName", new[] { typeof(string), typeof(string), typeof(object[]) })!;
+            
+            // Emit argument count
+            Emit(OpCodes.Ldc_I4, node.Args.Count);
+            Emit(OpCodes.Newarr, typeof(object));
+            
+            // Store args to array
+            for (int i = 0; i < node.Args.Count; i++)
+            {
+                Emit(OpCodes.Dup);
+                Emit(OpCodes.Ldc_I4, i);
+                node.Args[i].Accept(this, source);
+                EmitBoxingIfLiteral(node.Args[i]);
+                Emit(OpCodes.Stelem_Ref);
+            }
+            
+            Emit(OpCodes.Call, callMethod);
+            return;
         }
         // Variable call (e.g., $handle(...) or $myCallable(...)) - means we're calling a Closure
         else if (node.Callee is VariableNode)
@@ -204,7 +252,58 @@ public partial class Compiler
 
     private void ResolveParamsAndCall(FunctionCallNode node, PhpFunction phpFunc, ReadOnlySpan<char> source)
     {
+        // Check if any argument is a spread
+        bool hasSpread = node.Args.Any(arg => arg is SpreadNode);
 
+        if (hasSpread)
+        {
+            // Use runtime helper for spread arguments
+            var methodName = "unknown";
+            if (node.Callee is IdentifierNode id)
+            {
+                methodName = id.Token.TextValue(in source);
+            }
+            else if (node.Callee is QualifiedNameNode qn)
+            {
+                var parts = new List<string>();
+                foreach (var p in qn.Parts)
+                    parts.Add(p.TextValue(in source));
+                methodName = string.Join("\\", parts);
+            }
+
+            // Push function name
+            Emit(OpCodes.Ldstr, methodName);
+
+            // Create array for arguments
+            Emit(OpCodes.Ldc_I4, node.Args.Count);
+            Emit(OpCodes.Newarr, typeof(object));
+
+            // Store each argument to array
+            for (int i = 0; i < node.Args.Count; i++)
+            {
+                Emit(OpCodes.Dup);
+                Emit(OpCodes.Ldc_I4, i);
+                
+                if (node.Args[i] is SpreadNode spreadNode)
+                {
+                    // For spread, push the array itself
+                    spreadNode.Expression.Accept(this, source);
+                }
+                else
+                {
+                    node.Args[i].Accept(this, source);
+                    EmitBoxingIfLiteral(node.Args[i]);
+                }
+                
+                Emit(OpCodes.Stelem_Ref);
+            }
+
+            var callMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("CallFunctionWithSpread", new[] { typeof(string), typeof(object[]) })!;
+            Emit(OpCodes.Call, callMethod);
+            return;
+        }
+
+        // Regular argument handling (no spread)
         for (int i = 0; i < node.Args.Count; i++)
         {
             node.Args[i].Accept(this, in source);

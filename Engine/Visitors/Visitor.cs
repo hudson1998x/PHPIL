@@ -55,6 +55,11 @@ public class Visitor : IVisitor
         foreach (var visitor in _visitors) visitor.VisitArrayLiteralNode(node, in source);
     }
 
+    public void VisitSpreadNode(SpreadNode node, in ReadOnlySpan<char> source)
+    {
+        foreach (var visitor in _visitors) visitor.VisitSpreadNode(node, in source);
+    }
+
     public void VisitArrayAccessNode(ArrayAccessNode node, in ReadOnlySpan<char> source)
     {
         foreach (var visitor in _visitors) visitor.VisitArrayAccessNode(node, in source);

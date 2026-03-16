@@ -53,3 +53,20 @@ public class ArrayLiteralNode : ExpressionNode
         builder.Append("]}");
     }
 }
+
+public class SpreadNode : ExpressionNode
+{
+    public ExpressionNode Expression { get; set; } = null!;
+
+    public override AnalysedType AnalysedType { get; set; } = AnalysedType.Mixed;
+
+    public override void Accept(IVisitor visitor, in ReadOnlySpan<char> source)
+        => visitor.VisitSpreadNode(this, source);
+
+    public override void ToJson(in ReadOnlySpan<char> span, in ReadOnlySpan<Token> tokens, StringBuilder builder)
+    {
+        builder.Append("{\"type\":\"SpreadNode\",\"expression\":");
+        Expression.ToJson(in span, in tokens, builder);
+        builder.Append("}");
+    }
+}

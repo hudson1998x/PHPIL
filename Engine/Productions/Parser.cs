@@ -2,6 +2,7 @@
 using PHPIL.Engine.CodeLexer;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
+using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.SyntaxTree.Structure.OOP;
 
 namespace PHPIL.Engine.Productions
@@ -307,6 +308,15 @@ namespace PHPIL.Engine.Productions
                 var operand = ParseAtom(ref ctx);
                 if (operand != null)
                     return new PrefixExpressionNode(op, operand);
+            }
+
+            // 4c. SPREAD OPERATOR
+            if (token.Kind == TokenKind.CollectSpread)
+            {
+                ctx.Consume(); // Consume '...'
+                var operand = ParseAtom(ref ctx);
+                if (operand != null)
+                    return new SpreadNode { Expression = (ExpressionNode)operand };
             }
 
             // 5. PAREN GROUP

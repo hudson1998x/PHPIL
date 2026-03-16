@@ -129,4 +129,28 @@ public class OperatorExecutionTests : BaseTest
         result = Execute("<?php $x = 'value'; $x ??= 'default'; print($x);");
         AssertEqual("value", result);
     }
+
+    [PHPILTest]
+    public void SpreadOperator()
+    {
+        ResetTestState();
+        var result = Execute("<?php $arr = [1, 2, 3]; print($arr[0]);");
+        AssertEqual("1", result);
+    }
+    
+    [PHPILTest]
+    public void SpreadOperatorInArray()
+    {
+        ResetTestState();
+        var result = Execute("<?php $a = [1, 2]; $b = [...$a, 3]; print($b[0]); print($b[1]); print($b[2]);");
+        AssertEqual("123", result);
+    }
+    
+    [PHPILTest]
+    public void SpreadOperatorChained()
+    {
+        ResetTestState();
+        var result = Execute("<?php $a = [1]; $b = [2, 3]; $c = [...$a, ...$b, 4]; print($c[0]); print($c[1]); print($c[2]); print($c[3]);");
+        AssertEqual("1234", result);
+    }
 }
