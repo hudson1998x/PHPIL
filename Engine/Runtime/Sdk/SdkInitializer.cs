@@ -9,5 +9,6 @@ public static partial class SdkInitializer
         InitIncludeRequire();
         InitAutoload();
         InitStrings();
+        InitConstants();
     }
 }

@@ -73,6 +73,7 @@ public partial class Compiler
 
         var innerCompiler = new Compiler(functionName, returnType, parameterTypes);
         innerCompiler._currentNamespace = _currentNamespace;
+        innerCompiler._currentFunctionName = functionName;  // Track current function name for __FUNCTION__
         foreach (var import in _useImports)
             innerCompiler._useImports[import.Key] = import.Value;
 

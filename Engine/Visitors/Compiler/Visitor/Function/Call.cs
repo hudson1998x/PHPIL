@@ -14,6 +14,8 @@ public partial class Compiler
 {
 
     private string _fileName = "vm:0";
+    private string _currentFunctionName = "";
+    private string _currentMethodName = "";
 
     public void WithFileName(string fileName)
     {

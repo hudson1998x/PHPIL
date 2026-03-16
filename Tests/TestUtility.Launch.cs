@@ -51,6 +51,7 @@ public partial class TestUtility
         utility.Run<SyntaxTests>();
         utility.Run<SuperglobalsExecutionTests>();
         utility.Run<IssetExecutionTests>();
+        utility.Run<ExecutionContextTests>();
         
         utility.PrintSummary();
 

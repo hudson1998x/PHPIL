@@ -132,10 +132,17 @@ namespace PHPIL.Engine.DevServer
             };
             
             // Add all request headers with HTTP_ prefix
-            foreach (string header in request.Headers.AllKeys)
+            var allKeys = request.Headers?.AllKeys;
+            if (allKeys != null && request.Headers != null)
             {
-                var key = "HTTP_" + header.ToUpper().Replace("-", "_");
-                serverVars[key] = request.Headers[header] ?? "";
+                foreach (var header in allKeys)
+                {
+                    if (header != null)
+                    {
+                        var key = "HTTP_" + header.ToUpper().Replace("-", "_");
+                        serverVars[key] = request.Headers[header] ?? "";
+                    }
+                }
             }
             
             executionContext.PopulateServer(serverVars);
@@ -190,7 +197,7 @@ namespace PHPIL.Engine.DevServer
             
             // Populate $_COOKIE from Cookie header
             var cookieVars = new Dictionary<object, object>();
-            var cookieHeader = request.Headers["Cookie"];
+            var cookieHeader = request.Headers?.Get("Cookie");
             if (!string.IsNullOrEmpty(cookieHeader))
             {
                 foreach (var pair in cookieHeader.Split(';'))

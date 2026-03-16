@@ -212,6 +212,7 @@ public partial class Compiler
             innerCompiler._currentNamespace = _currentNamespace;
             innerCompiler._currentType = typeBuilder; 
             innerCompiler._isStaticMethod = isStatic;
+            innerCompiler._currentMethodName = mNode.Name.Token.TextValue(in source); // Track method name for __METHOD__
 
             foreach (var import in _useImports)
                 innerCompiler._useImports[import.Key] = import.Value;

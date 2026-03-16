@@ -23,7 +23,14 @@ public static class Strings
     {
         if (value != null)
             Streams.Print(value);
-        SdkInitializer.StdoutStream.Flush();
+        
+        // Flush the appropriate stream based on execution context
+        var context = Runtime.CurrentContext;
+        if (context != null)
+            context.OutputStream.Flush();
+        else
+            SdkInitializer.StdoutStream.Flush();
+        
         throw new DieException();
     }
     

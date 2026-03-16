@@ -58,4 +58,22 @@ public abstract class BaseTest
         TypeTable.Clear();
         Compiler.ResetModule();
     }
+
+    protected void AssertTrue(bool condition, string? message = null)
+    {
+        if (!condition)
+            throw new Exception(message ?? "Expected condition to be true, but it was false.");
+    }
+
+    protected void AssertFalse(bool condition, string? message = null)
+    {
+        if (condition)
+            throw new Exception(message ?? "Expected condition to be false, but it was true.");
+    }
+
+    protected void AssertNull(object? obj, string? message = null)
+    {
+        if (obj is not null)
+            throw new Exception(message ?? $"Expected object to be null, but it was {obj}.");
+    }
 }

@@ -120,10 +120,71 @@ public partial class Compiler : IVisitor
         throw new NotImplementedException();
     }
 
-    /// <summary>Visitor stub — not yet implemented.</summary>
+    /// <summary>
+    /// Emits IL for a bare identifier, which in PHP is treated as a constant reference.
+    /// Handles compile-time magic constants (__FILE__, __DIR__, __LINE__, __FUNCTION__, __METHOD__, __CLASS__).
+    /// User-defined constants must be accessed via the constant() function at runtime.
+    /// </summary>
+    /// <param name="node">The <see cref="IdentifierNode"/> representing the identifier.</param>
+    /// <param name="source">The original source text, used to resolve the constant name and calculate line numbers.</param>
     public void VisitIdentifierNode(IdentifierNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        var identifierName = node.Token.TextValue(in source);
+
+        // Check for magic constants (all compile-time, no runtime lookup needed)
+        if (identifierName.Equals("__FILE__", StringComparison.OrdinalIgnoreCase))
+        {
+            Emit(OpCodes.Ldstr, _fileName);
+            return;
+        }
+
+        if (identifierName.Equals("__DIR__", StringComparison.OrdinalIgnoreCase))
+        {
+            var dirPath = Path.GetDirectoryName(_fileName) ?? "";
+            Emit(OpCodes.Ldstr, dirPath);
+            return;
+        }
+
+        if (identifierName.Equals("__LINE__", StringComparison.OrdinalIgnoreCase))
+        {
+            // Calculate line number by counting newlines up to token position
+            var lineNumber = 1;
+            for (int i = 0; i < node.Token.RangeStart && i < source.Length; i++)
+            {
+                if (source[i] == '\n')
+                    lineNumber++;
+            }
+            Emit(OpCodes.Ldc_I4, lineNumber);
+            Emit(OpCodes.Box, typeof(int));
+            return;
+        }
+
+        if (identifierName.Equals("__FUNCTION__", StringComparison.OrdinalIgnoreCase))
+        {
+            Emit(OpCodes.Ldstr, _currentFunctionName);
+            return;
+        }
+
+        if (identifierName.Equals("__METHOD__", StringComparison.OrdinalIgnoreCase))
+        {
+            // Format: ClassName::methodName
+            var methodFullName = string.IsNullOrEmpty(_currentMethodName) 
+                ? "" 
+                : (_currentType != null ? _currentType.Name.Replace(".", "\\") : "") + "::" + _currentMethodName;
+            Emit(OpCodes.Ldstr, methodFullName);
+            return;
+        }
+
+        if (identifierName.Equals("__CLASS__", StringComparison.OrdinalIgnoreCase))
+        {
+            var className = _currentType != null ? _currentType.Name.Replace(".", "\\") : "";
+            Emit(OpCodes.Ldstr, className);
+            return;
+        }
+
+        // For user-defined constants, users must use the constant() function at runtime
+        // This avoids IL verification issues with reflection-based method calls
+        throw new Exception($"Undefined constant: {identifierName}. Use constant('{identifierName}') to look up user-defined constants.");
     }
 
     /// <summary>
