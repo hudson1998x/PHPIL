@@ -8,7 +8,11 @@ class Events
     
     public static function On(string $evName, $callable)
     {
-        self::$eventTable[$evName] = [$callable];        
+        if (!isset(self::$eventTable[$evName]))
+        {
+            self::$eventTable[$evName] = [];
+        }
+        self::$eventTable[$evName][] = $callable;
     }    
     
     public static function Dispatch(string $evName, $obj)
