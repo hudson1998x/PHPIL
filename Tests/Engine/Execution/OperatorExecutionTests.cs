@@ -85,4 +85,48 @@ public class OperatorExecutionTests : BaseTest
         result = Execute("<?php $x = 5; print($x--); print($x);");
         AssertEqual("54", result);
     }
+
+    [PHPILTest]
+    public void NullCoalesce_Basic()
+    {
+        ResetTestState();
+        var result = Execute("<?php $x = 'value'; print($x ?? 'default');");
+        AssertEqual("value", result);
+        
+        ResetTestState();
+        result = Execute("<?php $x = null; print($x ?? 'default');");
+        AssertEqual("default", result);
+        
+        ResetTestState();
+        result = Execute("<?php print(null ?? 'default');");
+        AssertEqual("default", result);
+    }
+
+    [PHPILTest]
+    public void NullCoalesce_Chained()
+    {
+        ResetTestState();
+        var result = Execute("<?php $a = null; $b = 'middle'; print($a ?? $b ?? 'default');");
+        AssertEqual("middle", result);
+        
+        ResetTestState();
+        result = Execute("<?php $a = null; $b = null; print($a ?? $b ?? 'default');");
+        AssertEqual("default", result);
+        
+        ResetTestState();
+        result = Execute("<?php $a = 'first'; $b = 'middle'; print($a ?? $b ?? 'default');");
+        AssertEqual("first", result);
+    }
+
+    [PHPILTest]
+    public void NullCoalesceAssign()
+    {
+        ResetTestState();
+        var result = Execute("<?php $x = null; $x ??= 'default'; print($x);");
+        AssertEqual("default", result);
+
+        ResetTestState();
+        result = Execute("<?php $x = 'value'; $x ??= 'default'; print($x);");
+        AssertEqual("value", result);
+    }
 }

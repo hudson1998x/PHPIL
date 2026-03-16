@@ -34,6 +34,7 @@ public partial class BinaryOpNode
     {
         if (op == TokenKind.AssignEquals) return right;
         if (op == TokenKind.Concat) return AnalysedType.String;
+        if (op == TokenKind.NullCoalesce) return AnalysedType.Mixed;
         
         if (op is TokenKind.LessThan or TokenKind.GreaterThan or TokenKind.ShallowEquality)
             return AnalysedType.Boolean;

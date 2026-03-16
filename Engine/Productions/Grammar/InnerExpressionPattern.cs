@@ -236,6 +236,7 @@ namespace PHPIL.Engine.Productions.Patterns
                 or TokenKind.MultiplyAssign or TokenKind.DivideAssign or TokenKind.ModuloAssign 
                 or TokenKind.PowerAssign or TokenKind.ConcatAppend or TokenKind.NullCoalesceAssign => (10, false, true),
             TokenKind.LogicalOr => (20, false, false),
+            TokenKind.NullCoalesce => (18, false, true),
             TokenKind.QuestionMark => (15, false, false),
             TokenKind.LogicalAnd => (30, false, false),
             TokenKind.LessThan or TokenKind.GreaterThan or TokenKind.LessThanOrEqual or TokenKind.GreaterThanOrEqual 

@@ -284,7 +284,8 @@ namespace PHPIL.Engine.Productions
                           or TokenKind.StringLiteral 
                           or TokenKind.FloatLiteral 
                           or TokenKind.TrueLiteral 
-                          or TokenKind.FalseLiteral)
+                          or TokenKind.FalseLiteral
+                          or TokenKind.NullLiteral)
             {
                 if (Grammar.Literal().TryMatch(ref ctx, out var lit))
                     return lit;

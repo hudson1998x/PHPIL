@@ -124,4 +124,9 @@ public static class Runtime
         if (a.GetType() != b.GetType()) return false;
         return a.Equals(b);
     }
+
+    public static object NullCoalesce(object? left, object? right)
+    {
+        return left ?? (right ?? "");
+    }
 }

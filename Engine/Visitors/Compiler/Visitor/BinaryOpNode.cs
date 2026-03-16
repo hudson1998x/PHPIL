@@ -64,6 +64,54 @@ public partial class Compiler
             return;
 		}
 
+        if (node.Operator is TokenKind.NullCoalesce)
+        {
+            node.Left?.Accept(this, source);
+            EmitBoxingIfLiteral(node.Left);
+            node.Right?.Accept(this, source);
+            EmitBoxingIfLiteral(node.Right);
+
+            var nullCoalesce = typeof(Runtime.Runtime).GetMethod("NullCoalesce", BindingFlags.Public | BindingFlags.Static)!;
+            Emit(OpCodes.Call, nullCoalesce);
+            return;
+        }
+
+        if (node.Operator is TokenKind.NullCoalesceAssign)
+        {
+            if (node.Left is not VariableNode varNode)
+                throw new NotImplementedException("Null coalesce assignment only supports variables");
+
+            var varName = varNode.Token.TextValue(in source);
+            var endLabel = DefineLabel();
+            var evaluateRightLabel = DefineLabel();
+
+            if (!_locals.TryGetValue(varName, out var local))
+            {
+                local = DeclareLocal(typeof(object));
+                _locals[varName] = local;
+            }
+
+            Emit(OpCodes.Ldloc, local);
+            Emit(OpCodes.Dup);
+            Emit(OpCodes.Brfalse, evaluateRightLabel);
+
+            if (node.NeedsValue)
+                Emit(OpCodes.Dup);
+            Emit(OpCodes.Stloc, local);
+            Emit(OpCodes.Br, endLabel);
+
+            MarkLabel(evaluateRightLabel);
+            Emit(OpCodes.Pop);
+            node.Right?.Accept(this, source);
+            EmitBoxingIfLiteral(node.Right);
+            if (node.NeedsValue)
+                Emit(OpCodes.Dup);
+            Emit(OpCodes.Stloc, local);
+
+            MarkLabel(endLabel);
+            return;
+        }
+
         if (IsCompoundAssignment(node.Operator))
         {
             // Compound assignment: $x += 5
@@ -335,6 +383,7 @@ public partial class Compiler
         TokenKind.ModuloAssign => TokenKind.Modulo,
         TokenKind.PowerAssign => TokenKind.Power,
         TokenKind.ConcatAppend => TokenKind.Concat,
+        TokenKind.NullCoalesceAssign => TokenKind.NullCoalesce,
         _ => throw new ArgumentException()
     };
 

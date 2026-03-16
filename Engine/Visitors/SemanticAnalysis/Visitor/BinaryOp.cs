@@ -15,13 +15,7 @@ public partial class SemanticVisitor
 			decl.EmitValue = true;
 		}
 
-		node.AnalysedType = node.Operator switch
-		{
-			TokenKind.Concat   => AnalysedType.String,
-			TokenKind.Multiply => node.Left!.AnalysedType is AnalysedType.Float || node.Right!.AnalysedType is AnalysedType.Float
-				? AnalysedType.Float
-				: AnalysedType.Int,
-			_ => AnalysedType.Mixed
-		};
+		// Note: AnalysedType is inferred by the BinaryOpNode.AnalysedType getter
+		// We don't need to set it here
 	}
 }
