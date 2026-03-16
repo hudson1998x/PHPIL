@@ -7,6 +7,21 @@ namespace PHPIL.Engine.Visitors;
 
 public partial class Compiler
 {
+    /// <summary>
+    /// Emits IL for a postfix increment (<c>$x++</c>) or decrement (<c>$x--</c>) expression.
+    /// </summary>
+    /// <param name="node">The <see cref="PostfixExpressionNode"/> representing the postfix expression.</param>
+    /// <param name="source">The original source text, used to resolve the operand variable name.</param>
+    /// <exception cref="Exception">
+    /// Thrown when the operand is not a <see cref="VariableNode"/>, or when the variable has not
+    /// been declared in the current scope.
+    /// </exception>
+    /// <remarks>
+    /// The variable's current (pre-mutation) value is loaded first, leaving the original value on
+    /// the stack as the expression result. The value is then unboxed to <see cref="int"/>,
+    /// incremented or decremented by one, reboxed, and stored back to the local — preserving
+    /// postfix semantics where the caller receives the value before the mutation.
+    /// </remarks>
     public void VisitPostfixExpressionNode(PostfixExpressionNode node, in ReadOnlySpan<char> source)
     {
         if (node.Operator.Kind == TokenKind.Increment || node.Operator.Kind == TokenKind.Decrement)

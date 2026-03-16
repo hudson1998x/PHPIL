@@ -9,9 +9,21 @@ namespace PHPIL.Engine.Visitors;
 
 public partial class Compiler
 {
+    /// <summary>
+    /// Lazily-initialised <see cref="AssemblyBuilder"/> that hosts all dynamically defined PHP classes.
+    /// </summary>
     private static AssemblyBuilder? _assemblyBuilder;
+
+    /// <summary>
+    /// Lazily-initialised <see cref="ModuleBuilder"/> within <see cref="_assemblyBuilder"/> into
+    /// which all PHP class types are emitted.
+    /// </summary>
     private static ModuleBuilder? _moduleBuilder;
 
+    /// <summary>
+    /// Gets the shared <see cref="ModuleBuilder"/> used to define dynamic PHP class types,
+    /// initialising the underlying dynamic assembly on first access.
+    /// </summary>
     private static ModuleBuilder ModuleBuilder
     {
         get
@@ -25,13 +37,70 @@ public partial class Compiler
             return _moduleBuilder;
         }
     }
-    
+
+    /// <summary>
+    /// Resets the shared dynamic assembly and module, discarding all previously emitted types.
+    /// </summary>
+    /// <remarks>
+    /// Intended for use between test runs or interpreter resets where a fresh type namespace is required.
+    /// </remarks>
     public static void ResetModule()
     {
         _assemblyBuilder = null;
         _moduleBuilder = null;
     }
 
+    /// <summary>
+    /// Emits a dynamic CLR type for a PHP class declaration, including inheritance, interface
+    /// implementation, trait composition, fields, constants, methods, and a parameterless constructor.
+    /// </summary>
+    /// <param name="node">The <see cref="ClassNode"/> representing the PHP class declaration.</param>
+    /// <param name="source">The original source text, used to resolve names, modifiers, and literal values.</param>
+    /// <remarks>
+    /// <para>
+    /// Compilation proceeds in four passes:
+    /// </para>
+    /// <list type="number">
+    ///   <item>
+    ///     <description>
+    ///       <b>Pass 0 — Trait composition:</b> any <see cref="TraitUseNode"/> members are resolved
+    ///       via <c>TypeTable</c> and their AST members are appended to the working member list.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b>Pass 1 — Member headers:</b> <see cref="MethodNode"/> entries are declared via
+    ///       <c>TypeBuilder.DefineMethod</c> with attributes mapped by <see cref="MapMethodAttributes"/>;
+    ///       <see cref="PropertyNode"/> fields are declared via <c>DefineField</c> with attributes
+    ///       mapped by <see cref="MapFieldAttributes"/> and registered in <c>PhpType.FieldBuilders</c>;
+    ///       <see cref="ConstantNode"/> entries are declared as <c>Literal</c> static fields with their
+    ///       values set immediately for <c>int</c> and <c>string</c> literals.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b>Pass 2 — Method bodies:</b> a child <see cref="Compiler"/> is created per method,
+    ///       inheriting the current namespace, use-imports, and <c>_currentType</c>. Parameters are
+    ///       loaded from arguments into typed locals. For instance methods, <c>$this</c> is bound to
+    ///       <c>Ldarg_0</c>. The method body is emitted, followed by an implicit <see langword="null"/>
+    ///       return for non-<see langword="void"/> methods.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b>Pass 3 — Constructor:</b> a public parameterless constructor is synthesised. It chains
+    ///       to the base constructor, then emits field default initialisers for any
+    ///       <see cref="PropertyNode"/> with a <c>DefaultValue</c>. PHP <c>__construct</c> is
+    ///       intentionally not invoked here — it is called as a regular method after object creation.
+    ///     </description>
+    ///   </item>
+    /// </list>
+    /// <para>
+    /// After <c>TypeBuilder.CreateType</c> completes, static property defaults are written via
+    /// <c>RuntimeHelpers.SetStaticPropertyDefault</c> for literal and array-literal initialisers,
+    /// and all methods are registered with <c>TypeTable</c> for later lookup.
+    /// </para>
+    /// </remarks>
     public void VisitClassNode(ClassNode node, in ReadOnlySpan<char> source)
     {
         var fqn = ResolveFQN(node.Name, source);
@@ -264,6 +333,29 @@ public partial class Compiler
         }
     }
 
+    /// <summary>
+    /// Emits IL to instantiate a PHP class and invoke its <c>__construct</c> method if present.
+    /// </summary>
+    /// <param name="node">The <see cref="NewNode"/> representing the <c>new ClassName(...)</c> expression.</param>
+    /// <param name="source">The original source text, used to resolve the class identifier.</param>
+    /// <exception cref="Exception">
+    /// Thrown when the class identifier cannot be resolved, or when the resolved type has no
+    /// parameterless constructor.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// If the class's <c>RuntimeType</c> is not yet available in <c>TypeTable</c> (e.g. for
+    /// forward-referenced or lazily-loaded classes), <c>RuntimeHelpers.ResolveAndCreate</c> is
+    /// called at runtime to instantiate the object by name, followed by
+    /// <c>RuntimeHelpers.TryCallConstruct</c> with the packed argument array.
+    /// </para>
+    /// <para>
+    /// When the type is known at compile time, <see cref="OpCodes.Newobj"/> is emitted directly
+    /// against the parameterless constructor. The new object is duplicated on the stack so that
+    /// it remains as the expression result after <c>TryCallConstruct</c> consumes its copy to
+    /// invoke <c>__construct</c>.
+    /// </para>
+    /// </remarks>
     public void VisitNewNode(NewNode node, in ReadOnlySpan<char> source)
     {
         string? fqn = null;
@@ -324,6 +416,14 @@ public partial class Compiler
         Emit(OpCodes.Call, tryCallConstructMethod);
     }
 
+    /// <summary>
+    /// Maps PHP method modifiers to their corresponding <see cref="MethodAttributes"/> flags.
+    /// </summary>
+    /// <param name="modifiers">The <see cref="PhpModifiers"/> declared on the method.</param>
+    /// <returns>
+    /// A <see cref="MethodAttributes"/> value combining visibility, static, final, and abstract
+    /// flags. Defaults to <see cref="MethodAttributes.Public"/> when no visibility modifier is present.
+    /// </returns>
     private MethodAttributes MapMethodAttributes(PhpModifiers modifiers)
     {
         MethodAttributes attrs = MethodAttributes.HideBySig;
@@ -339,6 +439,14 @@ public partial class Compiler
         return attrs;
     }
 
+    /// <summary>
+    /// Maps PHP property modifiers to their corresponding <see cref="FieldAttributes"/> flags.
+    /// </summary>
+    /// <param name="modifiers">The <see cref="PhpModifiers"/> declared on the property.</param>
+    /// <returns>
+    /// A <see cref="FieldAttributes"/> value combining visibility, static, and readonly flags.
+    /// Defaults to <see cref="FieldAttributes.Public"/> when no visibility modifier is present.
+    /// </returns>
     private FieldAttributes MapFieldAttributes(PhpModifiers modifiers)
     {
         FieldAttributes attrs = 0;
@@ -353,6 +461,17 @@ public partial class Compiler
         return attrs;
     }
 
+    /// <summary>
+    /// Emits a dynamic CLR interface type for a PHP interface declaration and registers it
+    /// with <c>TypeTable</c>.
+    /// </summary>
+    /// <param name="node">The <see cref="InterfaceNode"/> representing the PHP interface declaration.</param>
+    /// <param name="source">The original source text, used to resolve the interface and parent interface names.</param>
+    /// <remarks>
+    /// Extended interfaces are resolved via <c>TypeTable</c> and applied via
+    /// <c>AddInterfaceImplementation</c>. No method stubs are emitted — interface method
+    /// signatures are enforced at the PHP semantic level rather than in the CLR type.
+    /// </remarks>
     public void VisitInterfaceNode(InterfaceNode node, in ReadOnlySpan<char> source)
     {
         var fqn = ResolveFQN(node.Name, source);
@@ -371,11 +490,34 @@ public partial class Compiler
         if (phpType != null) phpType.RuntimeType = finishedType;
     }
 
+    /// <summary>
+    /// Visitor stub for a PHP trait declaration.
+    /// </summary>
+    /// <param name="node">The <see cref="TraitNode"/> representing the trait declaration.</param>
+    /// <param name="source">The original source text.</param>
+    /// <remarks>
+    /// Traits are stored in <c>TypeTable</c> by the semantic analysis pass and applied to
+    /// consuming classes in <see cref="VisitClassNode"/> (Pass 0). No IL is emitted here.
+    /// </remarks>
     public void VisitTraitNode(TraitNode node, in ReadOnlySpan<char> source)
     {
         // Traits are stored in the TypeTable for later application
     }
 
+    /// <summary>
+    /// Emits IL for an <c>instanceof</c> expression, leaving a boxed <see cref="bool"/> on the stack.
+    /// </summary>
+    /// <param name="node">The <see cref="InstanceOfNode"/> representing the instanceof check.</param>
+    /// <param name="source">The original source text, used to resolve the target class identifier.</param>
+    /// <exception cref="NotImplementedException">
+    /// Thrown when the class identifier cannot be resolved and is not a <see cref="VariableNode"/>.
+    /// </exception>
+    /// <remarks>
+    /// When the target type is known at compile time, <see cref="OpCodes.Isinst"/> is emitted
+    /// against the resolved CLR type, and the result is compared against <see langword="null"/>
+    /// via <see cref="OpCodes.Cgt_Un"/> to produce a <see cref="bool"/>. When the identifier is
+    /// a variable (i.e. a dynamic class name), <c>RuntimeHelpers.InstanceOf</c> is called instead.
+    /// </remarks>
     public void VisitInstanceOfNode(InstanceOfNode node, in ReadOnlySpan<char> source)
     {
         node.Expression?.Accept(this, source);
@@ -410,6 +552,18 @@ public partial class Compiler
         throw new NotImplementedException("instanceof for dynamic or unknown class not yet implemented.");
     }
 
+    /// <summary>
+    /// Emits IL to load a property value from an object access expression (<c>$obj->property</c>).
+    /// </summary>
+    /// <param name="node">The <see cref="ObjectAccessNode"/> representing the property access.</param>
+    /// <param name="source">The original source text, used to resolve the property name.</param>
+    /// <remarks>
+    /// For <c>$this->property</c> accesses within an instance method, the property is looked up
+    /// in <c>PhpType.FieldBuilders</c> and loaded via a direct <see cref="OpCodes.Ldfld"/>
+    /// instruction, bypassing reflection for efficiency. If the field is not found in
+    /// <c>FieldBuilders</c>, or the object is not <c>$this</c>, <c>RuntimeHelpers.GetProperty</c>
+    /// is used for dynamic property resolution.
+    /// </remarks>
     public void VisitObjectAccessNode(ObjectAccessNode node, in ReadOnlySpan<char> source)
     {
         node.Object?.Accept(this, source);
@@ -441,6 +595,30 @@ public partial class Compiler
         Emit(OpCodes.Call, getPropMethod2);
     }
 
+    /// <summary>
+    /// Emits IL to load a static property or class constant via a static access expression
+    /// (<c>ClassName::$property</c> or <c>ClassName::CONSTANT</c>).
+    /// </summary>
+    /// <param name="node">The <see cref="StaticAccessNode"/> representing the static access.</param>
+    /// <param name="source">The original source text, used to resolve the target type and member name.</param>
+    /// <exception cref="Exception">
+    /// Thrown when the member name cannot be resolved, when <c>self</c> is used outside a class
+    /// context, or when <c>parent</c> is used in a class with no base type.
+    /// </exception>
+    /// <exception cref="NotImplementedException">
+    /// Thrown when the target is a dynamic expression that cannot be resolved at compile time.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// Resolution is attempted in the following order:
+    /// </para>
+    /// <list type="number">
+    ///   <item><description><c>self</c> is aliased to <c>_currentType</c>; <c>parent</c> resolves to <c>_currentType.BaseType</c>.</description></item>
+    ///   <item><description>If the member is found in <c>PhpType.FieldBuilders</c> or as a static field on the runtime type, <c>RuntimeHelpers.GetStaticProperty</c> is called.</description></item>
+    ///   <item><description>If the member is a <c>Literal</c> constant field, its value is pushed directly as an <see cref="int"/> or <see cref="string"/> constant.</description></item>
+    ///   <item><description>If the type is not yet fully created (e.g. during circular class compilation), <see langword="null"/> is pushed as a fallback.</description></item>
+    /// </list>
+    /// </remarks>
     public void VisitStaticAccessNode(StaticAccessNode node, in ReadOnlySpan<char> source)
     {
         string? memberName = null;
@@ -541,31 +719,90 @@ public partial class Compiler
         Emit(OpCodes.Ldnull);
     }
 
+    /// <summary>
+    /// Visitor stub for the <c>parent</c> keyword used as a standalone expression.
+    /// </summary>
+    /// <param name="node">The <see cref="ParentNode"/>.</param>
+    /// <param name="source">The original source text.</param>
+    /// <remarks>
+    /// Parent resolution in static access and method call contexts is handled inline by
+    /// <see cref="VisitStaticAccessNode"/> and <see cref="VisitFunctionCallNode"/> respectively.
+    /// </remarks>
     public void VisitParentNode(ParentNode node, in ReadOnlySpan<char> source)
     {
         // TODO: Resolve parent class context
     }
 
+    /// <summary>
+    /// Visitor stub for a method declaration node.
+    /// </summary>
+    /// <param name="node">The <see cref="MethodNode"/> representing the method declaration.</param>
+    /// <param name="source">The original source text.</param>
+    /// <remarks>
+    /// Method compilation is handled entirely within <see cref="VisitClassNode"/> (Pass 2).
+    /// </remarks>
     public void VisitMethodNode(MethodNode node, in ReadOnlySpan<char> source)
     {
         // Handled within VisitClassNode
     }
 
+    /// <summary>
+    /// Visitor stub for a property declaration node.
+    /// </summary>
+    /// <param name="node">The <see cref="PropertyNode"/> representing the property declaration.</param>
+    /// <param name="source">The original source text.</param>
+    /// <remarks>
+    /// Property field definition and default value initialisation are handled entirely within
+    /// <see cref="VisitClassNode"/> (Passes 1 and 3).
+    /// </remarks>
     public void VisitPropertyNode(PropertyNode node, in ReadOnlySpan<char> source)
     {
         // Handled within VisitClassNode
     }
 
+    /// <summary>
+    /// Visitor stub for a trait use declaration node.
+    /// </summary>
+    /// <param name="node">The <see cref="TraitUseNode"/> representing the trait use declaration.</param>
+    /// <param name="source">The original source text.</param>
+    /// <remarks>
+    /// Trait member composition is handled entirely within <see cref="VisitClassNode"/> (Pass 0).
+    /// </remarks>
     public void VisitTraitUseNode(TraitUseNode node, in ReadOnlySpan<char> source)
     {
         // Handled within VisitClassNode
     }
 
+    /// <summary>
+    /// Visitor stub for a class constant declaration node.
+    /// </summary>
+    /// <param name="node">The <see cref="ConstantNode"/> representing the constant declaration.</param>
+    /// <param name="source">The original source text.</param>
+    /// <remarks>
+    /// Constant field definition and value assignment are handled entirely within
+    /// <see cref="VisitClassNode"/> (Pass 1).
+    /// </remarks>
     public void VisitConstantNode(ConstantNode node, in ReadOnlySpan<char> source)
     {
         // Handled within VisitClassNode
     }
 
+    /// <summary>
+    /// Resolves a <see cref="QualifiedNameNode"/> to its fully-qualified PHP name, applying
+    /// namespace qualification and use-import aliasing as appropriate.
+    /// </summary>
+    /// <param name="node">The <see cref="SyntaxNode"/> to resolve; expected to be a <see cref="QualifiedNameNode"/>.</param>
+    /// <param name="source">The original source text, used to extract identifier text values.</param>
+    /// <returns>
+    /// The fully-qualified name as a backslash-delimited string, or an empty string if
+    /// <paramref name="node"/> is not a <see cref="QualifiedNameNode"/>.
+    /// </returns>
+    /// <remarks>
+    /// Resolution priority: fully-qualified names (leading <c>\</c>) are returned as-is;
+    /// <c>self</c> is returned unqualified; single-part names are checked against
+    /// <c>_useImports</c> before falling back to namespace-prefixing; multi-part names are
+    /// always prefixed with the current namespace if one is active.
+    /// </remarks>
     private string ResolveFQN(SyntaxNode node, in ReadOnlySpan<char> source)
     {
         if (node is QualifiedNameNode qname)

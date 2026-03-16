@@ -6,6 +6,42 @@ namespace PHPIL.Engine.Visitors;
 
 public partial class Compiler
 {
+    /// <summary>
+    /// Emits IL for a block of statements, managing stack hygiene between each statement.
+    /// </summary>
+    /// <param name="node">The <see cref="BlockNode"/> containing the ordered list of statements.</param>
+    /// <param name="source">The original source text, passed through to child node visitors.</param>
+    /// <remarks>
+    /// <para>
+    /// Statements are emitted in order. If a <see cref="BreakNode"/> or <see cref="ContinueNode"/>
+    /// is encountered, emission stops immediately — subsequent statements in the block are
+    /// unreachable.
+    /// </para>
+    /// <para>
+    /// For <see cref="ExpressionNode"/> statements, a <see cref="OpCodes.Pop"/> is emitted after
+    /// the expression unless the value is known to be absent, specifically:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item>
+    ///     <description>
+    ///       Control flow expressions (<see cref="For"/>, <see cref="WhileNode"/>,
+    ///       <see cref="SwitchNode"/>, <see cref="IfNode"/>) do not leave a value on the stack.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       Assignment expressions (<see cref="BinaryOpNode"/> with an assignment operator)
+    ///       where <c>NeedsValue</c> is <see langword="false"/> consume their own result.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       Function calls whose resolved method has a <see langword="void"/> return type
+    ///       leave nothing on the stack.
+    ///     </description>
+    ///   </item>
+    /// </list>
+    /// </remarks>
     public void VisitBlockNode(BlockNode node, in ReadOnlySpan<char> source)
     {
         foreach (var stmt in node.Statements)

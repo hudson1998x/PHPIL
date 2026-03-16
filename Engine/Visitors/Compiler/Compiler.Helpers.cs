@@ -9,6 +9,17 @@ namespace PHPIL.Engine.Visitors;
 
 public partial class Compiler
 {
+    /// <summary>
+    /// Emits a boxing instruction for the value on the stack if <paramref name="node"/> is
+    /// an unboxed literal type.
+    /// </summary>
+    /// <param name="node">The <see cref="SyntaxNode"/> whose token kind determines whether boxing is required.</param>
+    /// <remarks>
+    /// Only <see cref="TokenKind.IntLiteral"/>, <see cref="TokenKind.FloatLiteral"/>,
+    /// <see cref="TokenKind.TrueLiteral"/>, and <see cref="TokenKind.FalseLiteral"/> produce
+    /// unboxed values from <see cref="VisitLiteralNode"/> and therefore require boxing. String
+    /// and null literals are reference types and are left unchanged.
+    /// </remarks>
     private void EmitBoxingIfLiteral(SyntaxNode? node)
     {
         if (node is LiteralNode literal)
@@ -28,6 +39,12 @@ public partial class Compiler
         }
     }
 
+    /// <summary>
+    /// Emits a boxing instruction for the value on the stack based on the runtime shape of
+    /// <paramref name="node"/>, dispatching to <see cref="EmitBoxingIfLiteral"/> for literals
+    /// and <see cref="EmitBoxingForBinaryOp"/> for binary expressions.
+    /// </summary>
+    /// <param name="node">The <see cref="SyntaxNode"/> whose shape determines the boxing strategy.</param>
     private void EmitBoxing(SyntaxNode? node)
     {
         if (node is LiteralNode literal)
@@ -40,6 +57,16 @@ public partial class Compiler
         }
     }
 
+    /// <summary>
+    /// Emits a boxing instruction for the result of a binary expression, based on the
+    /// operator's result type.
+    /// </summary>
+    /// <param name="node">The <see cref="BinaryOpNode"/> whose operator determines the result type.</param>
+    /// <remarks>
+    /// Arithmetic operators (<c>+</c>, <c>-</c>, <c>*</c>, <c>/</c>, <c>%</c>, <c>**</c>)
+    /// produce an unboxed <see cref="int"/> and are boxed accordingly. Concatenation (<c>.</c>)
+    /// produces a <see cref="string"/>, which is already a reference type and requires no boxing.
+    /// </remarks>
     private void EmitBoxingForBinaryOp(BinaryOpNode node)
     {
         if (node.Operator is TokenKind.Add or TokenKind.Subtract or TokenKind.Multiply or 
@@ -53,12 +80,25 @@ public partial class Compiler
         }
     }
 
+    /// <summary>
+    /// Emits a call to <c>Runtime.CoerceToBool</c>, converting the value on top of the stack
+    /// to a <see cref="bool"/> using PHP's truthiness rules.
+    /// </summary>
     private void EmitCoerceToBool()
     {
         var method = typeof(Runtime.Runtime).GetMethod("CoerceToBool", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)!;
         Emit(OpCodes.Call, method);
     }
 
+    /// <summary>
+    /// Attempts to autoload a PHP function by name and return its <see cref="PhpFunction"/>
+    /// descriptor if autoloading succeeds.
+    /// </summary>
+    /// <param name="name">The unqualified or fully-qualified function name to autoload.</param>
+    /// <returns>
+    /// The <see cref="PhpFunction"/> registered under <paramref name="name"/> after autoloading,
+    /// or <see langword="null"/> if autoloading did not register the function.
+    /// </returns>
     private PhpFunction? TryAutoloadFunction(string name)
     {
         if (Runtime.Runtime.AutoloadFunction(name))
@@ -68,6 +108,45 @@ public partial class Compiler
         return null;
     }
 
+    /// <summary>
+    /// Resolves a callee expression to a <see cref="PhpFunction"/> descriptor, applying
+    /// namespace qualification, use-import aliasing, and autoloading as fallbacks.
+    /// </summary>
+    /// <param name="callee">The <see cref="ExpressionNode"/> representing the function being called.</param>
+    /// <param name="source">The original source text, used to extract identifier and name part text.</param>
+    /// <returns>
+    /// The resolved <see cref="PhpFunction"/>, or <see langword="null"/> if the callee is an
+    /// instance method, static method, or cannot be resolved.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// Resolution proceeds as follows:
+    /// </para>
+    /// <list type="number">
+    ///   <item>
+    ///     <description>
+    ///       <b><see cref="IdentifierNode"/></b> — the name is qualified with
+    ///       <c>_currentNamespace</c> and looked up in <c>FunctionTable</c>. If not found,
+    ///       a global (unqualified) lookup is attempted, followed by autoloading.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b><see cref="QualifiedNameNode"/></b> — fully-qualified names are used as-is;
+    ///       unqualified names are resolved against <c>_useImports</c> first, then prefixed
+    ///       with <c>_currentNamespace</c>. A single-part unqualified name falls back to a
+    ///       global lookup if the namespaced lookup fails. Autoloading is attempted last.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b><see cref="ObjectAccessNode"/> and <see cref="StaticAccessNode"/></b> —
+    ///       returned as <see langword="null"/>; instance and static method calls are resolved
+    ///       dynamically at the call site in <see cref="VisitFunctionCallNode"/>.
+    ///     </description>
+    ///   </item>
+    /// </list>
+    /// </remarks>
     private PhpFunction? ResolveFunction(ExpressionNode? callee, in ReadOnlySpan<char> source)
     {
         if (callee is IdentifierNode identifierNode)

@@ -7,6 +7,42 @@ namespace PHPIL.Engine.Visitors;
 
 public partial class Compiler
 {
+    /// <summary>
+    /// Emits IL to construct a PHP array literal as a <c>Dictionary&lt;object, object&gt;</c>.
+    /// </summary>
+    /// <param name="node">The <see cref="ArrayLiteralNode"/> representing the array literal expression.</param>
+    /// <param name="source">The original source text, passed through to child node visitors.</param>
+    /// <remarks>
+    /// <para>
+    /// A fresh <c>Dictionary&lt;object, object&gt;</c> is allocated and stored in a temporary local.
+    /// Each item in <paramref name="node"/> is then processed in order:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item>
+    ///     <description>
+    ///       <b>Spread items</b> (<c>...$arr</c>) — the spread expression is evaluated, cast to
+    ///       <c>Dictionary&lt;object, object&gt;</c>, and merged into the accumulator via
+    ///       <c>ArrayHelpers.Merge</c>. The result replaces the accumulator.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b>Keyed items</b> (<c>key =&gt; value</c>) — the key and value are each evaluated and
+    ///       boxed if they are <c>int</c> or <c>double</c> literals, then inserted via
+    ///       <c>Dictionary.set_Item</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b>Unkeyed items</b> — the value is evaluated and boxed if necessary, then appended
+    ///       via <c>ArrayHelpers.Append</c> for PHP-style auto-indexing.
+    ///     </description>
+    ///   </item>
+    /// </list>
+    /// <para>
+    /// The completed dictionary is left on the stack when the method returns.
+    /// </para>
+    /// </remarks>
     public void VisitArrayLiteralNode(ArrayLiteralNode node, in ReadOnlySpan<char> source)
     {
         var dictionaryType = typeof(Dictionary<object, object>);
@@ -90,6 +126,16 @@ public partial class Compiler
         Emit(OpCodes.Ldloc, tempLocal);
     }
 
+    /// <summary>
+    /// Emits IL to evaluate the inner expression of a spread operator (<c>...</c>).
+    /// </summary>
+    /// <param name="node">The <see cref="SpreadNode"/> representing the spread expression.</param>
+    /// <param name="source">The original source text, passed through to the inner expression visitor.</param>
+    /// <remarks>
+    /// This visitor only evaluates and boxes the spread expression — it does not perform the
+    /// actual spreading. The enclosing context (an array literal or function call) is responsible
+    /// for consuming the value and merging or unpacking it as appropriate.
+    /// </remarks>
     public void VisitSpreadNode(SpreadNode node, in ReadOnlySpan<char> source)
     {
         // Spread node - this is typically used in function calls or array literals

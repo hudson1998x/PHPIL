@@ -5,6 +5,37 @@ namespace PHPIL.Engine.Visitors;
 
 public partial class Compiler
 {
+    /// <summary>
+    /// Emits IL for a <c>foreach</c> loop, iterating over any PHP-compatible iterable using
+    /// the <c>Runtime.Sdk.Enumerable</c> abstraction.
+    /// </summary>
+    /// <param name="node">The <see cref="ForeachNode"/> representing the foreach loop.</param>
+    /// <param name="source">The original source text, used to resolve the key and value variable names.</param>
+    /// <exception cref="Exception">Thrown when the foreach construct has no value variable.</exception>
+    /// <remarks>
+    /// <para>
+    /// The iterable expression is evaluated and passed to <c>Enumerable.GetEnumerator</c>, which
+    /// returns an opaque enumerator object stored in a temporary local. The enumerator is
+    /// compatible with both PHP arrays and <c>Iterator</c> objects.
+    /// </para>
+    /// <para>
+    /// Value (and optionally key) variables are declared as <see cref="object"/> locals and
+    /// registered in <c>_locals</c>. Loop control labels are pushed onto <c>_breakLabels</c>
+    /// and <c>_continueLabels</c> before the body is emitted and popped afterwards, so that
+    /// nested <c>break</c> and <c>continue</c> statements resolve correctly.
+    /// </para>
+    /// <para>
+    /// The emitted loop structure is:
+    /// </para>
+    /// <list type="number">
+    ///   <item><description>Branch unconditionally to <c>loopStart</c>.</description></item>
+    ///   <item><description>Mark <c>loopStart</c>; call <c>Enumerable.MoveNext</c> — branch to <c>loopEnd</c> if it returns <see langword="false"/>.</description></item>
+    ///   <item><description>Load the current value via <c>Enumerable.GetCurrent</c> into the value local.</description></item>
+    ///   <item><description>If a key variable is declared, load the current key via <c>Enumerable.GetKey</c> into the key local.</description></item>
+    ///   <item><description>Emit the loop body, then branch back to <c>loopStart</c>.</description></item>
+    ///   <item><description>Mark <c>loopEnd</c>.</description></item>
+    /// </list>
+    /// </remarks>
     public void VisitForeachNode(ForeachNode node, in ReadOnlySpan<char> source)
     {
         // Get the array expression on stack

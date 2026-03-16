@@ -1,15 +1,84 @@
 using System.Reflection;
 using System.Reflection.Emit;
+using PHPIL.Engine.Exceptions;
 using PHPIL.Engine.SyntaxTree;
 using PHPIL.Engine.SyntaxTree.Structure;
 using PHPIL.Engine.SyntaxTree.Structure.OOP;
 using PHPIL.Engine.Visitors.SemanticAnalysis;
 using PHPIL.Engine.Runtime;
+using PHPIL.Engine.Runtime.Diagnostics;
 
 namespace PHPIL.Engine.Visitors;
 
 public partial class Compiler
 {
+
+    private string _fileName = "vm:0";
+
+    public void WithFileName(string fileName)
+    {
+        _fileName = fileName;
+    }
+    
+    /// <summary>
+    /// Emits IL for a function or method call expression.
+    /// </summary>
+    /// <param name="node">The <see cref="FunctionCallNode"/> representing the call expression.</param>
+    /// <param name="source">The original source text, used to resolve callee and argument names.</param>
+    /// <exception cref="NotImplementedException">
+    /// Thrown when the callee resolves to an unimplemented function, an unresolvable qualified name,
+    /// or a static method call on a dynamic type.
+    /// </exception>
+    /// <remarks>
+    /// Callee resolution is attempted in the following order:
+    /// <list type="number">
+    ///   <item>
+    ///     <description>
+    ///       <b><c>isset()</c></b> — detected by name before any other dispatch and handled
+    ///       entirely by <see cref="EmitIsset"/>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b>Instance method call</b> (<c>$obj->method(...)</c>) — the target object is pushed,
+    ///       then the method is resolved via <c>TypeTable</c> for <c>$this</c> calls. If the method
+    ///       is found, non-variadic, and has no spread arguments, a direct <see cref="OpCodes.Callvirt"/>
+    ///       is emitted. Otherwise <c>RuntimeHelpers.CallMethod</c> or
+    ///       <c>RuntimeHelpers.CallVariadicMethod</c> is used with an <c>object[]</c> argument array.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b>Static method call</b> (<c>ClassName::method(...)</c>) — the target type is resolved
+    ///       via <c>TypeTable</c>, with <c>self</c> aliased to <c>_currentType</c>. If the type and
+    ///       method are found and no spread arguments are present, a direct <see cref="OpCodes.Call"/>
+    ///       is emitted. Otherwise <c>RuntimeHelpers.CallStaticMethodByName</c> is used.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b>Closure variable call</b> (<c>$callable(...)</c>) — the variable is loaded, arguments
+    ///       are packed into an <c>object[]</c>, and <c>Closure.Invoke</c> is called via
+    ///       <see cref="OpCodes.Callvirt"/>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b>Qualified name call</b> — resolved via <see cref="ResolveFunction"/>. File inclusion
+    ///       functions (<c>require</c>, <c>require_once</c>, <c>include</c>, <c>include_once</c>) are
+    ///       dispatched to <see cref="ExecuteIncludeFunction"/>; all others to
+    ///       <see cref="ResolveParamsAndCall"/>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b>Regular named function call</b> — resolved via <see cref="ResolveFunction"/> and
+    ///       dispatched to <see cref="ExecuteIncludeFunction"/> or <see cref="ResolveParamsAndCall"/>
+    ///       as above.
+    ///     </description>
+    ///   </item>
+    /// </list>
+    /// </remarks>
     public void VisitFunctionCallNode(FunctionCallNode node, in ReadOnlySpan<char> source)
     {
         // Check for isset() FIRST before anything else - try multiple detection methods
@@ -230,7 +299,8 @@ public partial class Compiler
             
             // If not found as a function, treat as a variable-based closure call
             // For now, throw an error
-            throw new NotImplementedException($"Qualified name '{qnameStr}' is not a function or closure");
+            var (line, column) = LineColumnHelper.GetLineAndColumn(in source, qname.Parts[0]);
+            throw new FunctionNotDefinedException(qnameStr, _fileName, line, column);
         }
         // Regular function call
         var phpFunc = ResolveFunction(node.Callee, in source);
@@ -259,6 +329,21 @@ public partial class Compiler
         ResolveParamsAndCall(node, phpFunc, source);
     }
 
+    /// <summary>
+    /// Executes a PHP file inclusion function (<c>require</c>, <c>require_once</c>,
+    /// <c>include</c>, or <c>include_once</c>) at compile time when the path is a string literal,
+    /// or falls back to a runtime call when the path is dynamic.
+    /// </summary>
+    /// <param name="node">The <see cref="FunctionCallNode"/> representing the include/require call.</param>
+    /// <param name="phpFunc">The resolved <see cref="PhpFunction"/> for the inclusion function.</param>
+    /// <param name="source">The original source text, used to extract the file path literal.</param>
+    /// <exception cref="Exception">Thrown when no argument is supplied to the inclusion function.</exception>
+    /// <remarks>
+    /// If the path argument is not a <see cref="LiteralNode"/>, the call is deferred to
+    /// <see cref="ResolveParamsAndCall"/> for runtime resolution. If a
+    /// <c>DieException</c> is raised during compile-time file execution, it is re-thrown to
+    /// propagate the termination signal.
+    /// </remarks>
     private void ExecuteIncludeFunction(FunctionCallNode node, PhpFunction phpFunc, ReadOnlySpan<char> source)
     {
         var arg = node.Args.FirstOrDefault();
@@ -286,6 +371,30 @@ public partial class Compiler
         }
     }
 
+    /// <summary>
+    /// Resolves and emits IL for a standard PHP function call, handling spread arguments,
+    /// variadic parameters, and type coercions.
+    /// </summary>
+    /// <param name="node">The <see cref="FunctionCallNode"/> being compiled.</param>
+    /// <param name="phpFunc">The resolved <see cref="PhpFunction"/> to invoke.</param>
+    /// <param name="source">The original source text, used to resolve the callee name for runtime dispatch.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when <paramref name="phpFunc"/> has neither a <c>MethodInfo</c> nor a delegate
+    /// <c>Method</c> to call.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// If any argument is a <see cref="SpreadNode"/> or the function declares a variadic
+    /// (<c>object[]</c>) parameter, arguments are packed into an <c>object[]</c> and dispatched
+    /// via <c>RuntimeHelpers.CallVariadicFunction</c> or <c>RuntimeHelpers.CallFunctionWithSpread</c>
+    /// respectively. Spread arguments are pushed as-is; all others are boxed if necessary.
+    /// </para>
+    /// <para>
+    /// For regular calls, each argument is emitted and coerced to the corresponding parameter type
+    /// via <c>EmitCoercion</c>. After the call, non-<see langword="void"/> return values are
+    /// coerced to <see cref="object"/> so the result is always uniformly boxed on the stack.
+    /// </para>
+    /// </remarks>
     private void ResolveParamsAndCall(FunctionCallNode node, PhpFunction phpFunc, ReadOnlySpan<char> source)
     {
         // Check if any argument is a spread OR if the function has a variadic parameter
@@ -367,6 +476,57 @@ public partial class Compiler
         }
     }
 
+    /// <summary>
+    /// Emits IL to evaluate PHP's <c>isset()</c> construct, returning a boxed <see cref="bool"/>
+    /// indicating whether all supplied arguments are set and non-null.
+    /// </summary>
+    /// <param name="node">The <see cref="FunctionCallNode"/> representing the <c>isset()</c> call.</param>
+    /// <param name="source">The original source text, used to resolve variable and array key names.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when <c>RuntimeHelpers.GetArrayElementForIsset</c> or <c>RuntimeHelpers.IssetHelper</c>
+    /// cannot be located via reflection.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// With no arguments, <see langword="false"/> is pushed immediately. Otherwise, all arguments
+    /// are evaluated into an <c>object[]</c> using the following per-argument rules:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item>
+    ///     <description>
+    ///       <b>Superglobals</b> (<c>$_GET</c>, <c>$_POST</c>, etc.) — loaded via
+    ///       <c>GlobalState.GetSuperglobal</c>.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b>Known locals</b> — loaded directly from their <c>LocalBuilder</c> slot.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b>Undeclared variables</b> — <see langword="null"/> is pushed, matching PHP's
+    ///       behaviour for unset variables.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b>Array access expressions</b> — the array and key are each evaluated (with value-type
+    ///       keys boxed), then passed to <c>RuntimeHelpers.GetArrayElementForIsset</c> which returns
+    ///       <see langword="null"/> for missing keys rather than throwing.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       <b>All other expressions</b> — evaluated normally via <c>Accept</c>.
+    ///     </description>
+    ///   </item>
+    /// </list>
+    /// <para>
+    /// The populated array is passed to <c>RuntimeHelpers.IssetHelper</c>, whose result is boxed
+    /// as <see cref="bool"/> and left on the stack.
+    /// </para>
+    /// </remarks>
     private void EmitIsset(FunctionCallNode node, ReadOnlySpan<char> source)
     {
         // isset() returns true if all arguments are set and not null
@@ -475,4 +635,3 @@ public partial class Compiler
         Emit(OpCodes.Box, typeof(bool));
     }
 }
-

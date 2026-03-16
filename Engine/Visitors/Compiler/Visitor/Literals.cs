@@ -6,9 +6,23 @@ using PHPIL.Engine.SyntaxTree.Structure.OOP;
 
 namespace PHPIL.Engine.Visitors;
 
-
 public partial class Compiler
 {
+    /// <summary>
+    /// Emits IL to push a literal value onto the stack.
+    /// </summary>
+    /// <param name="node">The <see cref="LiteralNode"/> representing the literal value.</param>
+    /// <param name="source">The original source text, used to extract the literal's text value.</param>
+    /// <exception cref="NotImplementedException">Thrown for unrecognised literal token kinds.</exception>
+    /// <remarks>
+    /// Each literal kind maps to a single IL instruction: <c>true</c> and <c>false</c> push
+    /// <c>1</c> and <c>0</c> as <see cref="int"/> via <see cref="OpCodes.Ldc_I4_1"/> and
+    /// <see cref="OpCodes.Ldc_I4_0"/>; string literals have their surrounding quotes stripped
+    /// before being pushed via <see cref="OpCodes.Ldstr"/>; <c>null</c> pushes
+    /// <see langword="null"/> via <see cref="OpCodes.Ldnull"/>; integer and float literals are
+    /// parsed and pushed via <see cref="OpCodes.Ldc_I4"/> and <see cref="OpCodes.Ldc_R8"/>
+    /// respectively. No boxing is emitted here — callers are responsible for boxing where needed.
+    /// </remarks>
     public void VisitLiteralNode(LiteralNode node, in ReadOnlySpan<char> source)
     {
         switch (node.Token.Kind)
@@ -27,6 +41,25 @@ public partial class Compiler
         }
     }
 
+    /// <summary>
+    /// Emits IL to evaluate a PHP double-quoted interpolated string, producing a single
+    /// concatenated <see cref="string"/> on the stack.
+    /// </summary>
+    /// <param name="node">The <see cref="InterpolatedStringNode"/> containing the string parts.</param>
+    /// <param name="source">The original source text, passed through to child part visitors.</param>
+    /// <remarks>
+    /// <para>
+    /// If the node has no parts, an empty string is pushed directly via
+    /// <see cref="OpCodes.Ldstr"/>.
+    /// </para>
+    /// <para>
+    /// Otherwise, a <c>string[]</c> sized to the part count is allocated. Each part is visited
+    /// in order, coerced to <see cref="string"/> via <c>EmitStringCoercion</c> (with
+    /// <c>isVariable: true</c> for <see cref="VariableNode"/> and <see cref="ObjectAccessNode"/>
+    /// parts), and stored into the array via <see cref="OpCodes.Stelem_Ref"/>. Finally,
+    /// <c>string.Concat(string[])</c> is called to produce the result.
+    /// </para>
+    /// </remarks>
     public void VisitInterpolatedStringNode(InterpolatedStringNode node, in ReadOnlySpan<char> source)
     {
         if (node.Parts.Count == 0)
@@ -63,4 +96,4 @@ public partial class Compiler
         var concatMethod = typeof(string).GetMethod("Concat", new[] { typeof(string[]) })!;
         Emit(OpCodes.Call, concatMethod);
     }
-}
+}

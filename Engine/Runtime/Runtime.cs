@@ -1,5 +1,6 @@
 using System.Text;
 using PHPIL.Engine.CodeLexer;
+using PHPIL.Engine.Exceptions;
 using PHPIL.Engine.Productions;
 using PHPIL.Engine.Runtime.Sdk;
 using PHPIL.Engine.Visitors;
@@ -45,40 +46,36 @@ public static class Runtime
     {
         var path   = Path.GetFullPath(filePath);
         var source = File.ReadAllText(path).AsSpan();
-        Execute(in source, path);
+        try
+        {
+            Execute(in source, path);
+        }
+        catch (FunctionNotDefinedException functionNotDefinedException)
+        {
+            FatalError(functionNotDefinedException);
+        }
+    }
+
+    private static void FatalError(Exception exception)
+    {
+        Console.Clear();
+        Console.WriteLine($"Fatal Error: {exception.Message}");
     }
 
     public static void Execute(in ReadOnlySpan<char> fileContent, string fileName = "vm:0")
     {
         var tokens = Lexer.ParseSpan(fileContent);
         
-        var builder = new StringBuilder();
-
-        // builder.AppendLine("Tokens: [");
-        // foreach (var token in tokens)
-        // {
-        //     token.ToJson(in fileContent, builder);
-        // }
-        // builder.AppendLine("]")
-        //
-        // Console.WriteLine(builder.ToString());
-        
-        var span = (ReadOnlySpan<Token>) tokens.AsSpan();
         var ast = Parser.Parse(in tokens, in fileContent);
         
-        // ast?.ToJson(in fileContent, in span, builder);
-        // Console.WriteLine(builder.ToString());
-
         var visitors = new Visitor(
             new SemanticVisitor()
         );
 
         ast?.Accept(visitors, in fileContent);
         
-        // ast?.ToJson(in fileContent, in span, builder);
-        // Console.WriteLine(builder.ToString());
-
         var compiler = new Compiler();
+        compiler.WithFileName(fileName);
         ast?.Accept(compiler, in fileContent);
 
         try

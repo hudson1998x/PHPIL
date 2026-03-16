@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Reflection.Emit;
 using PHPIL.Engine.Productions.Patterns;
 using PHPIL.Engine.SyntaxTree;
@@ -7,17 +6,45 @@ namespace PHPIL.Engine.Visitors;
 
 public partial class Compiler : IVisitor
 {
+    /// <summary>The namespace currently active during compilation, used to qualify type and function names.</summary>
     private string _currentNamespace = "";
+
+    /// <summary>
+    /// Maps use-import aliases to their fully-qualified names, populated by <see cref="VisitUseNode"/>.
+    /// </summary>
     private readonly Dictionary<string, string> _useImports = [];
+
+    /// <summary>
+    /// The <see cref="Type"/> builder for the class currently being compiled, or
+    /// <see langword="null"/> when compiling at file scope.
+    /// </summary>
     private Type? _currentType;
+
+    /// <summary>
+    /// Indicates whether the method currently being compiled is static, used to suppress
+    /// <c>$this</c> binding and adjust argument index offsets.
+    /// </summary>
     private bool _isStaticMethod;
+
+    /// <summary>
+    /// Stack of exit labels for the currently active <c>if</c> chains, maintained in
+    /// innermost-first order so that <c>elseif</c> bodies can branch to the correct exit point.
+    /// </summary>
     private readonly Stack<Label> _exitLabels = new();
 
+    /// <summary>
+    /// Fallback visitor — not implemented; node types are dispatched via their typed overloads.
+    /// </summary>
     public void Visit(SyntaxNode node, in ReadOnlySpan<char> span)
     {
         throw new NotImplementedException();
     }
 
+    /// <summary>
+    /// Emits IL for each argument in an argument list by visiting them in order.
+    /// </summary>
+    /// <param name="node">The <see cref="ArgumentListNode"/> containing the arguments.</param>
+    /// <param name="source">The original source text, passed through to child node visitors.</param>
     public void VisitArgumentListNode(ArgumentListNode node, in ReadOnlySpan<char> source)
     {
         foreach (var arg in node.Arguments)
@@ -26,6 +53,28 @@ public partial class Compiler : IVisitor
         }
     }
 
+    /// <summary>
+    /// Emits IL for an <c>elseif</c> clause, evaluating its condition and branching to the
+    /// enclosing <c>if</c> statement's exit label when the body executes.
+    /// </summary>
+    /// <param name="node">The <see cref="ElseIfNode"/> representing the elseif clause.</param>
+    /// <param name="source">The original source text, passed through to child node visitors.</param>
+    /// <remarks>
+    /// <para>
+    /// A <c>falseLabel</c> is defined locally; if the condition is <see langword="false"/>,
+    /// control branches to it, skipping the body. Condition unboxing varies by expression type:
+    /// <see cref="FunctionCallNode"/> results are unboxed to <see cref="bool"/> and compared to
+    /// <c>1</c>; <see cref="VariableNode"/> results are unboxed directly to <see cref="int"/>;
+    /// all other expression results are assumed to already be in an appropriate form for
+    /// <see cref="OpCodes.Brfalse"/>.
+    /// </para>
+    /// <para>
+    /// After the body is emitted, an unconditional branch to <c>_exitLabels.Peek()</c> transfers
+    /// control to the end of the parent <c>if</c> chain. The remainder of the chain
+    /// (<c>elseif</c>/<c>else</c> siblings) is handled entirely by the enclosing
+    /// <see cref="VisitIfNode"/>.
+    /// </para>
+    /// </remarks>
     public void VisitElseIfNode(ElseIfNode node, in ReadOnlySpan<char> source)
     {
         // ElseIfNode is a conditional in the chain - evaluate condition and execute body
@@ -65,16 +114,28 @@ public partial class Compiler : IVisitor
         // Note: Don't process ElseIfs and ElseNode here - parent IfNode handles the chain
     }
 
+    /// <summary>Visitor stub — not yet implemented.</summary>
     public void VisitGroupNode(GroupNode node, in ReadOnlySpan<char> source)
     {
         throw new NotImplementedException();
     }
 
+    /// <summary>Visitor stub — not yet implemented.</summary>
     public void VisitIdentifierNode(IdentifierNode node, in ReadOnlySpan<char> source)
     {
         throw new NotImplementedException();
     }
 
+    /// <summary>
+    /// Emits IL for an <c>else</c> clause body without any condition check.
+    /// </summary>
+    /// <param name="node">The <see cref="ElseNode"/> representing the else clause.</param>
+    /// <param name="source">The original source text, passed through to the body visitor.</param>
+    /// <remarks>
+    /// No exit-label branch is emitted here — the enclosing <see cref="VisitIfNode"/> marks
+    /// the exit label immediately after all <c>elseif</c> and <c>else</c> bodies have been
+    /// processed.
+    /// </remarks>
     public void VisitElseNode(ElseNode node, in ReadOnlySpan<char> source)
     {
         // ElseNode just executes its body without condition checking
@@ -83,11 +144,42 @@ public partial class Compiler : IVisitor
             node.Body.Accept(this, source);
     }
 
+    /// <summary>Visitor stub — not yet implemented.</summary>
     public void VisitSyntaxNode(SyntaxNode node, in ReadOnlySpan<char> source)
     {
         throw new NotImplementedException();
     }
 
+    /// <summary>
+    /// Emits IL to compile a PHP anonymous function into a <see cref="Runtime.Closure"/> object
+    /// and leave that closure on the stack.
+    /// </summary>
+    /// <param name="node">The <see cref="AnonymousFunctionNode"/> representing the anonymous function.</param>
+    /// <param name="source">The original source text, used to resolve parameter names and the return type hint.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the underlying <see cref="System.Reflection.Emit.DynamicMethod"/> cannot be
+    /// created, or when the <c>Closure(string)</c> constructor cannot be located via reflection.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// Compilation mirrors <see cref="VisitFunctionNode"/>: a uniquely-named child
+    /// <see cref="Compiler"/> is created, parameters are loaded from arguments into typed locals,
+    /// the body is emitted, and an implicit <see langword="null"/> return is appended for
+    /// non-<see langword="void"/> functions.
+    /// </para>
+    /// <para>
+    /// The completed <see cref="System.Reflection.Emit.DynamicMethod"/> is baked into a delegate
+    /// whose type is selected from the standard <see cref="Action"/> / <see cref="Func{TResult}"/>
+    /// families based on the parameter count and return type. Functions with more than three
+    /// parameters fall back to <see cref="MulticastDelegate"/>. The delegate is registered with
+    /// <c>FunctionTable</c> under the generated name.
+    /// </para>
+    /// <para>
+    /// Finally, the generated function name is pushed as a string and a <see cref="Runtime.Closure"/>
+    /// is instantiated via <see cref="OpCodes.Newobj"/>, leaving the closure object on the stack
+    /// as the expression result.
+    /// </para>
+    /// </remarks>
     public void VisitAnonymousFunctionNode(AnonymousFunctionNode node, in ReadOnlySpan<char> source)
     {
         var functionName = "anonymous_func_" + FunctionTable.GetNextAnonymousId();
