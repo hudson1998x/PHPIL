@@ -197,10 +197,17 @@ public class OOPExecutionTests : BaseTest
     }
 
     [PHPILTest]
-    public void TypeTable_ContainsRegisteredTrait()
-    {
-        Execute("<?php trait TypeTableTestTrait { }");
-        var type = TypeTable.GetType("TypeTableTestTrait");
-        AssertNotNull(type, "Trait should be registered in TypeTable");
-    }
-}
+     public void TypeTable_ContainsRegisteredTrait()
+     {
+         Execute("<?php trait TypeTableTestTrait { }");
+         var type = TypeTable.GetType("TypeTableTestTrait");
+         AssertNotNull(type, "Trait should be registered in TypeTable");
+     }
+
+     [PHPILTest]
+     public void Method_VariadicArgs()
+     {
+         var result = Execute("<?php class TestClass { public function test(...$args) { foreach ($args as $arg) { print($arg); } } } $obj = new TestClass(); $obj->test(1, 2, 3);");
+         AssertEqual("123", result);
+     }
+ }

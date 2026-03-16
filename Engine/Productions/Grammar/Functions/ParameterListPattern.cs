@@ -22,6 +22,15 @@ public class ParameterListPattern : Pattern
         {
             Token? typeHint = null;
             SyntaxNode? defaultValue = null;
+            bool isVariadic = false;
+
+            // Check for Variadic: ...
+            if (ctx.Peek().Kind == TokenKind.CollectSpread)
+            {
+                ctx.Consume(); // Consume '...'
+                SkipTrivia(ref ctx);
+                isVariadic = true;
+            }
 
             // Check for Type Hint: Identifier or array keyword followed by a Variable
             if ((ctx.Peek().Kind == TokenKind.Identifier || ctx.Peek().Kind == TokenKind.Array) 
@@ -38,25 +47,11 @@ public class ParameterListPattern : Pattern
                 return false;
             }
 
-            // Must have a Variable name
-            if (ctx.Peek().Kind != TokenKind.Variable)
-            {
-                ctx.Restore(start);
-                return false;
-            }
-
-            // Must have a Variable name
-            if (ctx.Peek().Kind != TokenKind.Variable)
-            {
-                ctx.Restore(start);
-                return false;
-            }
-
             var nameToken = ctx.Consume();
             SkipTrivia(ref ctx);
 
-            // Optional default value
-            if (ctx.Peek().Kind == TokenKind.AssignEquals)
+            // Optional default value (not allowed for variadic)
+            if (!isVariadic && ctx.Peek().Kind == TokenKind.AssignEquals)
             {
                 ctx.Consume();
                 SkipTrivia(ref ctx);
@@ -75,7 +70,8 @@ public class ParameterListPattern : Pattern
             {
                 TypeHint = typeHint,
                 Name = nameToken,
-                DefaultValue = defaultValue
+                DefaultValue = defaultValue,
+                IsVariadic = isVariadic
             });
 
             // Handle Comma

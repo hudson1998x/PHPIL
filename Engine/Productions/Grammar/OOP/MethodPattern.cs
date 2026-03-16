@@ -114,7 +114,8 @@ namespace PHPIL.Engine.Productions
                     {
                         TypeHint = typeHint,
                         Name = new IdentifierNode { Token = p.Name },
-                        DefaultValue = p.DefaultValue
+                        DefaultValue = p.DefaultValue,
+                        IsVariadic = p.IsVariadic
                     };
                     convertedParams.Add(paramNode);
                 }

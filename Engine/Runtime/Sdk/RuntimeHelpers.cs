@@ -44,7 +44,13 @@ public static class RuntimeHelpers
             foreach (var method in methods)
             {
                 var parameters = method.GetParameters();
-                if (parameters.Length == finalArgs.Count)
+                if (parameters.Length == 1 && parameters[0].ParameterType == typeof(object[]))
+                {
+                    // Variadic method - pack args into array
+                    object[] packedArgs = new object[] { finalArgs.ToArray() };
+                    return method.Invoke(obj, packedArgs) ?? (object)"";
+                }
+                else if (parameters.Length == finalArgs.Count)
                 {
                     return method.Invoke(obj, finalArgs.ToArray()) ?? (object)"";
                 }
@@ -102,7 +108,13 @@ public static class RuntimeHelpers
         foreach (var method in methods)
         {
             var parameters = method.GetParameters();
-            if (parameters.Length == finalArgs.Count)
+            if (parameters.Length == 1 && parameters[0].ParameterType == typeof(object[]))
+            {
+                // Variadic method - pack args into array
+                object[] packedArgs = new object[] { finalArgs.ToArray() };
+                return method.Invoke(null, packedArgs) ?? (object)"";
+            }
+            else if (parameters.Length == finalArgs.Count)
             {
                 return method.Invoke(null, finalArgs.ToArray()) ?? (object)"";
             }
@@ -342,6 +354,105 @@ public static class RuntimeHelpers
         throw new Exception($"Static method '{methodName}' not found on type '{typeName}'");
     }
 
+    public static object CallVariadicFunction(string functionName, object?[] args)
+    {
+        // For variadic functions, args contains the arguments to be packed into an array.
+        // The function expects a single object[] parameter.
+        
+        // Look up the function in the function table
+        var phpFunc = Visitors.FunctionTable.GetFunction(functionName);
+        if (phpFunc == null)
+        {
+            throw new Exception($"Function '{functionName}' not found");
+        }
+        
+        var methodToCall = phpFunc.MethodInfo ?? phpFunc.Method?.Method;
+        if (methodToCall == null)
+        {
+            throw new Exception($"Cannot call function '{functionName}': no method available");
+        }
+        
+        // Pack args into a single array
+        object[] packedArgs = new object[] { args };
+        
+        // Invoke the function with packed args
+        var result = methodToCall.Invoke(null, packedArgs);
+        return result ?? "";
+    }
+
+    public static object CallVariadicMethod(object? obj, string methodName, object?[] args)
+    {
+        // For variadic methods, args contains the arguments to be packed into an array.
+        // The method expects a single object[] parameter.
+        
+        if (obj == null) throw new Exception("Cannot call method on null");
+        
+        var type = obj.GetType();
+        
+        try 
+        {
+            var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
+                .Where(m => m.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            
+            foreach (var method in methods)
+            {
+                var parameters = method.GetParameters();
+                if (parameters.Length == 1 && parameters[0].ParameterType == typeof(object[]))
+                {
+                    // Pack args into a single array
+                    object[] packedArgs = new object[] { args };
+                    return method.Invoke(obj, packedArgs) ?? (object)"";
+                }
+            }
+            
+            if (methods.Length > 0)
+            {
+                var paramCounts = string.Join(", ", methods.Select(m => m.GetParameters().Length));
+                throw new Exception($"Method '{methodName}' found but no matching overload ({paramCounts})");
+            }
+        }
+        catch (System.Reflection.TargetInvocationException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Error calling method '{methodName}' on {type.Name}: {ex.Message}");
+        }
+        
+        throw new Exception($"Method '{methodName}' not found on type '{type.Name}'");
+    }
+
+    public static object CallStaticVariadicMethod(Type type, string methodName, object?[] args)
+    {
+        // For variadic static methods, args contains the arguments to be packed into an array.
+        // The method expects a single object[] parameter.
+        
+        var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.IgnoreCase)
+            .Where(m => m.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        
+        foreach (var method in methods)
+        {
+            var parameters = method.GetParameters();
+            if (parameters.Length == 1 && parameters[0].ParameterType == typeof(object[]))
+            {
+                // Pack args into a single array
+                object[] packedArgs = new object[] { args };
+                return method.Invoke(null, packedArgs) ?? (object)"";
+            }
+        }
+        
+        if (methods.Length > 0)
+        {
+            var paramCounts = string.Join(", ", methods.Select(m => m.GetParameters().Length));
+            throw new Exception($"Static method '{methodName}' found but no matching overload ({paramCounts})");
+        }
+        
+        throw new Exception($"Static method '{methodName}' not found on type '{type.Name}'");
+    }
+
     public static object CallFunctionWithSpread(string functionName, object?[] args)
     {
         // For PHP functions, we need to handle spread arguments
@@ -389,6 +500,13 @@ public static class RuntimeHelpers
             throw new Exception($"Cannot call function '{functionName}': no method available");
         }
         
+        // Debug: check parameter count
+        var parameters = methodToCall.GetParameters();
+        if (parameters.Length != finalArgs.Count)
+        {
+            throw new Exception($"Parameter count mismatch for {functionName}: expected {parameters.Length}, got {finalArgs.Count}. Args: {string.Join(", ", args.Select(a => a?.GetType().Name ?? "null"))}");
+        }
+
         // Invoke the function with expanded arguments
         var result = methodToCall.Invoke(null, finalArgs.ToArray());
         return result ?? "";

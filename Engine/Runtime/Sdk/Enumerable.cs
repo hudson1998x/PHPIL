@@ -27,6 +27,11 @@ public class Enumerable
             return new PhpArrayEnumerator(dict);
         }
         
+        if (iterable is System.Collections.IEnumerable enumerable && iterable is not string)
+        {
+            return enumerable.GetEnumerator();
+        }
+        
         var type = iterable.GetType();
         
         // Use RuntimeHelpers to try calling the methods
@@ -88,6 +93,7 @@ public class Enumerable
     {
         if (enumerator is PhpArrayEnumerator ae) return ae.MoveNext();
         if (enumerator is IteratorEnumerator ie) return ie.MoveNext();
+        if (enumerator is System.Collections.IEnumerator netEnumerator) return netEnumerator.MoveNext();
         throw new Exception("Invalid enumerator");
     }
     
@@ -95,6 +101,7 @@ public class Enumerable
     {
         if (enumerator is PhpArrayEnumerator ae) return ae.Current;
         if (enumerator is IteratorEnumerator ie) return ie.Current;
+        if (enumerator is System.Collections.IEnumerator netEnumerator) return netEnumerator.Current ?? "";
         throw new Exception("Invalid enumerator");
     }
     
@@ -102,6 +109,14 @@ public class Enumerable
     {
         if (enumerator is PhpArrayEnumerator ae) return ae.Key;
         if (enumerator is IteratorEnumerator ie) return ie.Key;
+        if (enumerator is System.Collections.IEnumerator netEnumerator) 
+        {
+            // For standard .NET enumerators, we don't have a key
+            // Return 0 or throw? PHP foreach with key needs key.
+            // For simple foreach ($arr as $val), key is not used.
+            // We'll return 0 for now.
+            return 0; 
+        }
         throw new Exception("Invalid enumerator");
     }
 }

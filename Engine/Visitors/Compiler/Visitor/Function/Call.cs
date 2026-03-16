@@ -30,8 +30,18 @@ public partial class Compiler
             }
             
             bool hasSpread = node.Args.Any(arg => arg is SpreadNode);
+            bool isVariadic = false;
+            if (method != null)
+            {
+                var parameters = method.GetParameters();
+                if (parameters.Length == 1 && parameters[0].ParameterType == typeof(object[]))
+                {
+                    isVariadic = true;
+                }
 
-            if (method != null && !hasSpread)
+            }
+
+            if (method != null && !hasSpread && !isVariadic)
             {
                 // Direct call is safe
                 foreach (var arg in node.Args) arg.Accept(this, source);
@@ -39,9 +49,9 @@ public partial class Compiler
                 return;
             }
             
-            // Fall back to runtime helper for dynamic method calls or spread arguments
+            // Fall back to runtime helper for dynamic method calls or spread arguments or variadic methods
             Emit(OpCodes.Ldstr, methodName);
-            var callMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("CallMethod", new[] { typeof(object), typeof(string), typeof(object[]) })!;
+            var callMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod(isVariadic ? "CallVariadicMethod" : "CallMethod", new[] { typeof(object), typeof(string), typeof(object[]) })!;
             
             // Emit argument count
             Emit(OpCodes.Ldc_I4, node.Args.Count);
@@ -252,12 +262,13 @@ public partial class Compiler
 
     private void ResolveParamsAndCall(FunctionCallNode node, PhpFunction phpFunc, ReadOnlySpan<char> source)
     {
-        // Check if any argument is a spread
+        // Check if any argument is a spread OR if the function has a variadic parameter
         bool hasSpread = node.Args.Any(arg => arg is SpreadNode);
+        bool isVariadicFunction = phpFunc.ParameterTypes != null && phpFunc.ParameterTypes.Any(t => t == typeof(object[]));
 
-        if (hasSpread)
+        if (hasSpread || isVariadicFunction)
         {
-            // Use runtime helper for spread arguments
+            // Use runtime helper for spread arguments or variadic functions
             var methodName = "unknown";
             if (node.Callee is IdentifierNode id)
             {
@@ -298,7 +309,7 @@ public partial class Compiler
                 Emit(OpCodes.Stelem_Ref);
             }
 
-            var callMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("CallFunctionWithSpread", new[] { typeof(string), typeof(object[]) })!;
+            var callMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod(isVariadicFunction ? "CallVariadicFunction" : "CallFunctionWithSpread", new[] { typeof(string), typeof(object[]) })!;
             Emit(OpCodes.Call, callMethod);
             return;
         }

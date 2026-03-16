@@ -15,7 +15,14 @@ public partial class Compiler
         var parameterTypes = new Type[node.Params.Count];
         for (int i = 0; i < node.Params.Count; i++)
         {
-            parameterTypes[i] = typeof(object); // Default to mixed for now
+            if (node.Params[i].IsVariadic)
+            {
+                parameterTypes[i] = typeof(object[]);
+            }
+            else
+            {
+                parameterTypes[i] = typeof(object); // Default to mixed for now
+            }
         }
 
         var returnType = typeof(object); // Default to mixed for now

@@ -91,7 +91,13 @@ public partial class Compiler
                 var methodName = methodNode.Name.Token.TextValue(in source);
                 var attrs = MapMethodAttributes(methodNode.Modifiers);
                 var paramTypes = new Type[methodNode.Parameters.Count];
-                for (int i = 0; i < paramTypes.Length; i++) paramTypes[i] = typeof(object);
+                for (int i = 0; i < paramTypes.Length; i++)
+                {
+                    if (methodNode.Parameters[i].IsVariadic)
+                        paramTypes[i] = typeof(object[]);
+                    else
+                        paramTypes[i] = typeof(object);
+                }
                 
                 var mb = typeBuilder.DefineMethod(methodName, attrs, typeof(object), paramTypes);
                 methodBuilders.Add((methodNode, mb));

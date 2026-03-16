@@ -7,6 +7,7 @@ namespace PHPIL.Engine.SyntaxTree.Structure.OOP
         public IdentifierNode? TypeHint { get; set; }
         public IdentifierNode Name { get; set; } = null!;
         public SyntaxNode? DefaultValue { get; set; }
+        public bool IsVariadic { get; set; }
 
         public override void Accept(IVisitor visitor, in ReadOnlySpan<char> span)
         {

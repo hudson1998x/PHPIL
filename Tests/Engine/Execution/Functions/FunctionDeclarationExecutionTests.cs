@@ -47,4 +47,10 @@ public class FunctionDeclarationExecutionTests : BaseTest
     {
         AssertEqual("1020", Execute("<?php function printDouble($n) { print($n * 2); } printDouble(5); printDouble(10);"));
     }
+
+    [PHPILTest]
+    public void Function_VariadicArgs()
+    {
+        AssertEqual("123", Execute("<?php function test(...$args) { foreach ($args as $arg) { print($arg); } } test(1, 2, 3);"));
+    }
 }
