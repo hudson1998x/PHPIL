@@ -50,6 +50,7 @@ public partial class TestUtility
         utility.Run<SwitchExecutionTests>();
         utility.Run<SyntaxTests>();
         utility.Run<SuperglobalsExecutionTests>();
+        utility.Run<IssetExecutionTests>();
         
         utility.PrintSummary();
 

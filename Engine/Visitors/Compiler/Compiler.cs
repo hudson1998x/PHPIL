@@ -11,13 +11,12 @@ public partial class Compiler : IVisitor
     private readonly Dictionary<string, string> _useImports = [];
     private Type? _currentType;
     private bool _isStaticMethod;
+    private readonly Stack<Label> _exitLabels = new();
 
     public void Visit(SyntaxNode node, in ReadOnlySpan<char> span)
     {
         throw new NotImplementedException();
     }
-
-
 
     public void VisitArgumentListNode(ArgumentListNode node, in ReadOnlySpan<char> source)
     {
@@ -29,7 +28,41 @@ public partial class Compiler : IVisitor
 
     public void VisitElseIfNode(ElseIfNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        // ElseIfNode is a conditional in the chain - evaluate condition and execute body
+        // Jump to parent's exit label when condition is true
+        var falseLabel = DefineLabel();
+
+        if (node.Expression != null)
+        {
+            node.Expression.Accept(this, source);
+            // Properly handle different expression types for condition evaluation
+            if (node.Expression is FunctionCallNode)
+            {
+                // isset() and similar functions return bool
+                Emit(OpCodes.Unbox_Any, typeof(bool));
+                // Convert bool to int (true→1, false→0) for Brfalse
+                Emit(OpCodes.Ldc_I4_1);
+                Emit(OpCodes.Ceq);  // Compare: if bool == 1, result is 1, else 0
+            }
+            else if (node.Expression is VariableNode)
+            {
+                // Variables may be boxed - unbox to int directly
+                Emit(OpCodes.Unbox_Any, typeof(int));
+            }
+            // else: expression result is already in proper form
+
+            Emit(OpCodes.Brfalse, falseLabel);
+        }
+
+        if (node.Body != null)
+            node.Body.Accept(this, source);
+
+        // When elseif body executes, jump to parent if's exit label
+        if (_exitLabels.Count > 0)
+            Emit(OpCodes.Br, _exitLabels.Peek());
+
+        MarkLabel(falseLabel);
+        // Note: Don't process ElseIfs and ElseNode here - parent IfNode handles the chain
     }
 
     public void VisitGroupNode(GroupNode node, in ReadOnlySpan<char> source)
@@ -42,17 +75,18 @@ public partial class Compiler : IVisitor
         throw new NotImplementedException();
     }
 
-
     public void VisitElseNode(ElseNode node, in ReadOnlySpan<char> source)
     {
-        throw new NotImplementedException();
+        // ElseNode just executes its body without condition checking
+        // No need to jump to exit label - the parent IfNode will mark it after all elseif/else are processed
+        if (node.Body != null)
+            node.Body.Accept(this, source);
     }
 
     public void VisitSyntaxNode(SyntaxNode node, in ReadOnlySpan<char> source)
     {
         throw new NotImplementedException();
     }
-
 
     public void VisitAnonymousFunctionNode(AnonymousFunctionNode node, in ReadOnlySpan<char> source)
     {

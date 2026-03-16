@@ -10,11 +10,15 @@ public partial class Compiler
         var exitLabel = DefineLabel();
         var falseLabel = DefineLabel();
 
+        _exitLabels.Push(exitLabel);
+
         if (node.Expression != null)
         {
             node.Expression.Accept(this, source);
-            if (node.Expression is VariableNode)
-                Emit(OpCodes.Unbox_Any, typeof(int));
+            // Unbox any boxed value to bool for proper condition evaluation
+            // This handles variables and function calls like isset() that return boxed bools  
+            if (node.Expression is VariableNode or FunctionCallNode)
+                Emit(OpCodes.Unbox_Any, typeof(bool));
             Emit(OpCodes.Brfalse, falseLabel);
         }
 
@@ -47,5 +51,7 @@ public partial class Compiler
             node.ElseNode.Accept(this, source);
 
         MarkLabel(exitLabel);
+
+        _exitLabels.Pop();
     }
 }

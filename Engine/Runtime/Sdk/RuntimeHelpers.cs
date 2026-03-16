@@ -511,4 +511,53 @@ public static class RuntimeHelpers
         var result = methodToCall.Invoke(null, finalArgs.ToArray());
         return result ?? "";
     }
+
+    public static object? GetArrayElementForIsset(object? array, object? key)
+    {
+        // Safely get an array element for isset checking
+        // Returns null if array is null, key doesn't exist, or value is null
+        if (array == null)
+            return null;
+
+        if (array is System.Collections.Generic.Dictionary<object, object> dict)
+        {
+            if (dict.TryGetValue(key!, out var value))
+                return value;
+            return null;
+        }
+
+        // For other collection types, try using dynamic access
+        try
+        {
+            dynamic d = array;
+            return d[key];
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public static bool IssetHelper(object?[] values)
+    {
+        // isset() returns true if all arguments are set and not null
+        // In PHP:
+        // - isset($var) returns false if $var is not set or is null
+        // - isset($var1, $var2, ...) returns true only if ALL are set and not null
+        // - isset($array[$key]) returns false if array doesn't exist or key doesn't exist
+        // - isset($object->property) returns false if object or property doesn't exist
+        
+        if (values == null || values.Length == 0)
+            return false;
+
+        foreach (var value in values)
+        {
+            // Check if the value is null
+            if (value == null)
+                return false;
+        }
+
+        // All values are set and not null
+        return true;
+    }
 }

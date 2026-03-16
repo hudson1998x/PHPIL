@@ -12,6 +12,32 @@ public partial class Compiler
 {
     public void VisitFunctionCallNode(FunctionCallNode node, in ReadOnlySpan<char> source)
     {
+        // Check for isset() FIRST before anything else - try multiple detection methods
+        string? callName = null;
+        
+        // Method 1: Direct IdentifierNode
+        if (node.Callee is IdentifierNode issetIdNode)
+        {
+            callName = issetIdNode.Token.TextValue(in source);
+        }
+        // Method 2: Single-part QualifiedNameNode
+        else if (node.Callee is QualifiedNameNode issetQname)
+        {
+            var parts = new List<string>();
+            foreach (var p in issetQname.Parts)
+                parts.Add(p.TextValue(in source));
+            if (parts.Count == 1)
+            {
+                callName = parts[0];
+            }
+        }
+        
+        // Check if this is isset
+        if (callName != null && callName.Equals("isset", StringComparison.OrdinalIgnoreCase))
+        {
+            EmitIsset(node, source);
+            return;
+        }
         
         // Try instance method call first
         if (node.Callee is ObjectAccessNode objAccess)
@@ -340,4 +366,113 @@ public partial class Compiler
             EmitCoercion(fromAnalysedType, typeof(object));
         }
     }
+
+    private void EmitIsset(FunctionCallNode node, ReadOnlySpan<char> source)
+    {
+        // isset() returns true if all arguments are set and not null
+        if (node.Args.Count == 0)
+        {
+            Emit(OpCodes.Ldc_I4_0);
+            Emit(OpCodes.Box, typeof(bool));
+            return;
+        }
+
+        // Create array to hold all argument values
+        Emit(OpCodes.Ldc_I4, node.Args.Count);
+        Emit(OpCodes.Newarr, typeof(object));
+
+        for (int i = 0; i < node.Args.Count; i++)
+        {
+            Emit(OpCodes.Dup);
+            Emit(OpCodes.Ldc_I4, i);
+            
+            var arg = node.Args[i];
+
+            if (arg is VariableNode varNode)
+            {
+                var varName = varNode.Token.TextValue(in source);
+                var superglobals = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "$_GET", "$_POST", "$_COOKIE", "$_SERVER", "$_REQUEST", "$_FILES", "$_ENV", "$_SESSION"
+                };
+
+                if (superglobals.Contains(varName))
+                {
+                    Emit(OpCodes.Ldstr, varName);
+                    var getMethod = typeof(PHPIL.Engine.Runtime.GlobalState).GetMethod("GetSuperglobal", new[] { typeof(string) });
+                    Emit(OpCodes.Call, getMethod);
+                }
+                else if (_locals.TryGetValue(varName, out var local))
+                {
+                    Emit(OpCodes.Ldloc, local);
+                }
+                else
+                {
+                    Emit(OpCodes.Ldnull);
+                }
+            }
+            else if (arg is ArrayAccessNode arrayAccess)
+            {
+                // Load the array
+                if (arrayAccess.Array is VariableNode arrVarNode)
+                {
+                    var arrVarName = arrVarNode.Token.TextValue(in source);
+                    if (_locals.TryGetValue(arrVarName, out var arrLocal))
+                    {
+                        Emit(OpCodes.Ldloc, arrLocal);
+                    }
+                    else
+                    {
+                        Emit(OpCodes.Ldnull);
+                    }
+                }
+                else
+                {
+                    arrayAccess.Array.Accept(this, source);
+                }
+
+                // Load the key and ensure it's boxed to object
+                if (arrayAccess.Key != null)
+                {
+                    arrayAccess.Key.Accept(this, source);
+                    
+                    // Box value types produced by VisitLiteralNode to satisfy object parameter
+                    var keyType = arrayAccess.Key.AnalysedType;
+                    if (keyType == AnalysedType.Int || keyType == AnalysedType.Boolean)
+                    {
+                        Emit(OpCodes.Box, typeof(int));
+                    }
+                    else if (keyType == AnalysedType.Float)
+                    {
+                        Emit(OpCodes.Box, typeof(double));
+                    }
+                    // String, Array, Object, Mixed are reference types — no boxing needed
+                }
+                else
+                {
+                    Emit(OpCodes.Ldnull);
+                }
+
+                var getElementMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("GetArrayElementForIsset", new[] { typeof(object), typeof(object) });
+                if (getElementMethod == null)
+                    throw new InvalidOperationException("GetArrayElementForIsset method not found in RuntimeHelpers");
+                
+                Emit(OpCodes.Call, getElementMethod);
+            }
+            else
+            {
+                arg.Accept(this, source);
+            }
+            
+            Emit(OpCodes.Stelem_Ref);
+        }
+
+        var issetMethod = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("IssetHelper", new[] { typeof(object[]) });
+        if (issetMethod == null)
+            throw new InvalidOperationException("IssetHelper method not found in RuntimeHelpers");
+        
+        Emit(OpCodes.Call, issetMethod);
+        Emit(OpCodes.Box, typeof(bool));
+    }
 }
+

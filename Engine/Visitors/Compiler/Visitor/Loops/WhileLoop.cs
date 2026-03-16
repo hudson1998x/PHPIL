@@ -18,7 +18,9 @@ public partial class Compiler
         if (node.Expression != null)
         {
             node.Expression.Accept(this, source);
-            if (node.Expression is VariableNode)
+            // Unbox any boxed value to int for proper condition evaluation
+            // This handles variables and function calls like isset() that return boxed bools
+            if (node.Expression is VariableNode or FunctionCallNode)
                 Emit(OpCodes.Unbox_Any, typeof(int));
             Emit(OpCodes.Brfalse, exitLabel);
         }
