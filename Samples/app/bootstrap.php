@@ -1,3 +1,3 @@
 <?php
 
-require_once('Samples/app/autoload.php');
+require_once('app/autoload.php');

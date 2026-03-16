@@ -1,6 +1,6 @@
 <?php
 
-require_once('Samples/app/bootstrap.php');
+require_once('app/bootstrap.php');
 
 Eventing\Events::On('request', function($url) {
     print("[URL] {$url}");
