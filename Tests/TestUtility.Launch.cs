@@ -45,6 +45,7 @@ public partial class TestUtility
         utility.Run<StringInterpolationTests>();
         utility.Run<NamespaceTests>();
         utility.Run<OOPExecutionTests>();
+        utility.Run<StaticOOPTests>();
         utility.Run<ForeachExecutionTests>();
         utility.Run<SwitchExecutionTests>();
         utility.Run<SyntaxTests>();

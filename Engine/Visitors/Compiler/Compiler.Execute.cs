@@ -14,7 +14,8 @@ public partial class Compiler
         }
         catch (Exception ex)
         {
-            // Silently ignore - tests may check for exceptions
+            Console.WriteLine($"EXCEPTION during execution: {ex}");
+            throw;
         }
     }
 }

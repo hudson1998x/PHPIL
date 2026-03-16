@@ -40,6 +40,16 @@ public static class TypeTable
         return null;
     }
     
+    public static PhpType? GetTypeByRuntime(Type runtimeType)
+    {
+        foreach (var type in Types.Values)
+        {
+            if (type.RuntimeType == runtimeType)
+                return type;
+        }
+        return null;
+    }
+    
     public static void Clear()
     {
         Types.Clear();

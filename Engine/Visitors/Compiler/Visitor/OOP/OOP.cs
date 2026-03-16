@@ -237,6 +237,10 @@ public partial class Compiler
                         defaultValue = tokenText.Trim('"', '\'');
                     }
                 }
+                else if (pNode.DefaultValue is ArrayLiteralNode)
+                {
+                    defaultValue = new Dictionary<object, object?>();
+                }
                 
                 if (defaultValue != null)
                 {
@@ -453,6 +457,9 @@ public partial class Compiler
                 if (_currentType == null)
                     throw new Exception("'self' used outside of class context.");
                 targetType = _currentType;
+                // Get the actual FQN for runtime helper lookup - build from namespace and type name
+                var className = targetType.Name;
+                fqn = string.IsNullOrEmpty(_currentNamespace) ? className : _currentNamespace + "\\" + className;
             }
             else
             {
@@ -468,10 +475,23 @@ public partial class Compiler
 
         if (targetType != null)
         {
-            // Try field (static property)
+            // Try to get the PhpType and check FieldBuilders first
+            var phpType = TypeTable.GetType(fqn ?? targetType.Name.Replace(".", "\\"));
+            if (phpType != null && phpType.FieldBuilders.TryGetValue(memberName, out var fieldBuilder))
+            {
+                // Use runtime helper to get the static property value
+                Emit(OpCodes.Ldstr, memberName);
+                Emit(OpCodes.Ldstr, fqn?.Replace("\\", ".") ?? targetType.Name);
+                var getStaticProp = typeof(PHPIL.Engine.Runtime.Sdk.RuntimeHelpers).GetMethod("GetStaticProperty")!;
+                Emit(OpCodes.Call, getStaticProp);
+                return;
+            }
+            
+            // Try field (static property) via reflection on RuntimeType
             try
             {
-                var field = targetType.GetField(memberName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
+                var runtimeType = phpType?.RuntimeType ?? targetType;
+                var field = runtimeType.GetField(memberName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
                 if (field != null)
                 {
                     Emit(OpCodes.Ldstr, memberName);

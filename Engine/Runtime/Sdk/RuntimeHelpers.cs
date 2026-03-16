@@ -172,29 +172,34 @@ public static class RuntimeHelpers
     
     public static object? GetStaticProperty(string propertyName, string typeName)
     {
+        // Normalize typeName - convert dots to backslashes to match how defaults are stored
+        var normalizedTypeName = typeName.Replace(".", "\\");
+        
         // Check if we have a stored default value
-        if (_staticPropertyDefaults.TryGetValue((typeName, propertyName), out var defaultValue))
+        if (_staticPropertyDefaults.TryGetValue((normalizedTypeName, propertyName), out var defaultValue))
         {
-            return defaultValue?.ToString() ?? "";
+            return defaultValue;
         }
         
         // Try to get from the actual type
-        var phpType = Visitors.TypeTable.GetType(typeName);
-        if (phpType?.RuntimeType == null) throw new Exception($"Type '{typeName}' not found.");
+        var phpType = Visitors.TypeTable.GetType(normalizedTypeName);
+        if (phpType?.RuntimeType == null) 
+        {
+            throw new Exception($"Type '{typeName}' not found.");
+        }
         
         var type = phpType.RuntimeType;
-        var field = type.GetField(propertyName, BindingFlags.Public | BindingFlags.Static);
+        var field = type.GetField(propertyName, BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
         if (field != null)
         {
             try
             {
-                var value = field.GetValue(null);
-                return value?.ToString() ?? "";
+                return field.GetValue(null);
             }
             catch
             {
-                // Field value not set yet, return empty
-                return "";
+                // Field value not set yet, return null
+                return null;
             }
         }
         
@@ -215,7 +220,9 @@ public static class RuntimeHelpers
     
     public static void SetStaticFieldByName(string typeName, string fieldName, object? value)
     {
-        var phpType = Visitors.TypeTable.GetType(typeName);
+        var normalizedTypeName = typeName.Replace(".", "\\");
+        
+        var phpType = Visitors.TypeTable.GetType(normalizedTypeName);
         if (phpType?.RuntimeType == null)
             throw new Exception($"Type '{typeName}' not found.");
         

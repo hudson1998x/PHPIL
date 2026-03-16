@@ -24,6 +24,9 @@ namespace PHPIL.Engine.Productions.Patterns
 
             var block = new BlockNode();
 
+            // Skip any trivia after opening brace
+            SkipTrivia(ref ctx);
+
             // 2. Parse statements until '}'
             while (!ctx.IsAtEnd && ctx.Peek().Kind != TokenKind.RightBrace)
             {

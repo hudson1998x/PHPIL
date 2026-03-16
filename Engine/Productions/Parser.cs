@@ -334,7 +334,7 @@ namespace PHPIL.Engine.Productions
 
         public static void SkipTrivia(ref ParserContext ctx)
         {
-            while (!ctx.IsAtEnd && (ctx.Peek().Kind == TokenKind.Whitespace || ctx.Peek().Kind == TokenKind.NewLine))
+            while (!ctx.IsAtEnd && (ctx.Peek().Kind == TokenKind.Whitespace || ctx.Peek().Kind == TokenKind.NewLine || ctx.Peek().Kind == TokenKind.SingleLineComment || ctx.Peek().Kind == TokenKind.MultiLineComment))
                 ctx.Consume();
         }
     }
